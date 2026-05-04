@@ -15,6 +15,30 @@ Ollama Pool Gateway is a high-performance, multi-tenant proxy designed to optimi
 - **🎮 Built-in Playground**: Test models directly from the admin dashboard with a modern chat interface.
 - **📖 Integrated Documentation**: Dynamic API documentation that updates based on your active configuration.
 
+## 🏗️ How it Works
+
+The gateway acts as a smart middleman between your applications and the Ollama Cloud.
+
+```mermaid
+graph LR
+    App[Your Application] -->|API Call| Gateway[Ollama Pool Gateway]
+    subgraph "Gateway Logic"
+        Gateway --> Auth[Auth & Tenant Check]
+        Auth --> Inject[Model Injection]
+        Inject --> Select[Key Rotation & Selection]
+    end
+    Select -->|Proxy| Ollama[Ollama Cloud API]
+    Ollama -->|Success/429| Gateway
+    Gateway -->|Retry if 429| Select
+    Gateway -->|Response| App
+```
+
+1.  **Auth**: Validates the request via JWT or System API Key.
+2.  **Model Injection**: If `model` is missing, it looks up the tenant's default.
+3.  **Rotation**: Selects the best available key (least used or round-robin).
+4.  **Failover**: If Ollama returns a 429 (Rate Limit), the key is put in "cooldown" and the gateway immediately retries with a new key.
+5.  **Logging**: The entire transaction is recorded for auditing and performance monitoring.
+
 ## 🛠️ Technology Stack
 
 - **Backend**: [NestJS](https://nestjs.com/) (Node.js framework)
@@ -33,15 +57,14 @@ Ollama Pool Gateway is a high-performance, multi-tenant proxy designed to optimi
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/Giuseph66/ollama-pool-gateway.git
-   cd ollama-pool-gateway
+   git clone https://github.com/Giuseph66/ollama-server-rotate-key.git
+   cd ollama-server-rotate-key
    ```
 
 2. **Setup the Backend**:
    ```bash
    cd backend
    npm install
-   cp .env.example .env
    npx prisma migrate dev --name init
    npx prisma db seed
    npm run start:dev
