@@ -44,5 +44,7 @@ npm-debug.log
 yarn-error.log
 
 # Prisma and DB
-database.db
 database.db-journal
+database.db
+
+package-lock.json
