@@ -33,7 +33,7 @@ Ollama Pool Gateway is a high-performance, multi-tenant proxy designed to optimi
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-repo/ollama-pool-gateway.git
+   git clone https://github.com/Giuseph66/ollama-pool-gateway.git
    cd ollama-pool-gateway
    ```
 
