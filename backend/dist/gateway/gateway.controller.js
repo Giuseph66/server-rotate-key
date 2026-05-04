@@ -17,7 +17,7 @@ const openapi = require("@nestjs/swagger");
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const gateway_service_1 = require("./gateway.service");
-const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const gateway_auth_guard_1 = require("../auth/gateway-auth.guard");
 let GatewayController = class GatewayController {
     constructor(gatewayService) {
         this.gatewayService = gatewayService;
@@ -109,7 +109,7 @@ let GatewayController = class GatewayController {
 exports.GatewayController = GatewayController;
 __decorate([
     (0, common_1.Post)('chat'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseGuards)(gateway_auth_guard_1.GatewayAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({ summary: 'Proxy chat request to Ollama Cloud with key rotation' }),
     openapi.ApiResponse({ status: 201 }),
@@ -122,7 +122,7 @@ __decorate([
 ], GatewayController.prototype, "chat", null);
 __decorate([
     (0, common_1.Post)('generate'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseGuards)(gateway_auth_guard_1.GatewayAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({ summary: 'Proxy generate request to Ollama Cloud with key rotation' }),
     openapi.ApiResponse({ status: 201 }),
@@ -134,8 +134,8 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GatewayController.prototype, "generate", null);
 __decorate([
-    (0, common_1.Get)('tags'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Get)('models'),
+    (0, common_1.UseGuards)(gateway_auth_guard_1.GatewayAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({ summary: 'List available models from Ollama Cloud' }),
     openapi.ApiResponse({ status: 200, type: Object }),
@@ -146,7 +146,7 @@ __decorate([
 ], GatewayController.prototype, "listModels", null);
 __decorate([
     (0, common_1.Get)('settings'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseGuards)(gateway_auth_guard_1.GatewayAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({ summary: 'Get gateway settings' }),
     openapi.ApiResponse({ status: 200, type: Object }),
@@ -156,7 +156,7 @@ __decorate([
 ], GatewayController.prototype, "getSettings", null);
 __decorate([
     (0, common_1.Put)('settings'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseGuards)(gateway_auth_guard_1.GatewayAuthGuard),
     (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({ summary: 'Update gateway settings' }),
     openapi.ApiResponse({ status: 200 }),

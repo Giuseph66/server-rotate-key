@@ -12,6 +12,8 @@ interface LogUsageParams {
     tokensOutput?: number;
     retryCount?: number;
     errorMessage?: string;
+    requestBody?: string;
+    responseBody?: string;
 }
 export declare class UsageService {
     private prisma;
@@ -20,17 +22,19 @@ export declare class UsageService {
     logUsage(params: LogUsageParams): Promise<{
         id: string;
         createdAt: Date;
+        requestBody: string | null;
+        model: string | null;
         status: string;
         tenantId: string | null;
         statusCode: number | null;
         apiKeyLabel: string | null;
         endpoint: string;
-        model: string | null;
         latencyMs: number;
         tokensInput: number | null;
         tokensOutput: number | null;
         retryCount: number;
         errorMessage: string | null;
+        responseBody: string | null;
         apiKeyId: string | null;
     } | undefined>;
     getRecentLogs(limit?: number): Promise<({
@@ -41,17 +45,19 @@ export declare class UsageService {
     } & {
         id: string;
         createdAt: Date;
+        requestBody: string | null;
+        model: string | null;
         status: string;
         tenantId: string | null;
         statusCode: number | null;
         apiKeyLabel: string | null;
         endpoint: string;
-        model: string | null;
         latencyMs: number;
         tokensInput: number | null;
         tokensOutput: number | null;
         retryCount: number;
         errorMessage: string | null;
+        responseBody: string | null;
         apiKeyId: string | null;
     })[]>;
     getStats(): Promise<{

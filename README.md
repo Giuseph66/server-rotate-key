@@ -1,76 +1,89 @@
-# Ollama Pool Gateway
+# 🚀 Ollama Pool Gateway
 
-A multi-tenant API gateway that manages a rotating pool of Ollama Cloud API keys. Designed to ensure high availability and bypass rate limits (429 Too Many Requests) through automatic failover and intelligent key rotation.
+Ollama Pool Gateway is a high-performance, multi-tenant proxy designed to optimize and scale your interaction with the Ollama Cloud API. It provides a robust layer of abstraction that handles API key rotation, automatic failover, and comprehensive usage auditing.
 
-## Features
+## 🌟 Key Features
 
-- **Automatic Failover:** When a key hits a 429 Rate Limit, the gateway automatically rotates to the next available key and retries the request without dropping the connection.
-- **Cooldown Management:** Rate-limited keys are placed in "Cooldown" for a configurable time before being returned to the active pool.
-- **Multi-Tenancy:** Supports multiple tenants using the same gateway, each with independent JWT authentication.
-- **Usage Tracking:** Tracks total requests, latency, success rates, and token estimates per tenant and per key.
-- **Admin Dashboard:** Modern React/Vite UI to monitor health, manage the key pool, and test the gateway.
-- **Drop-in Replacement:** Compatible with existing applications using the standard Ollama API (`/api/chat`, `/api/generate`, `/api/tags`).
+- **🔄 Intelligent Key Rotation**: Manage a pool of multiple Ollama Cloud API keys. The gateway automatically rotates keys to maximize throughput and avoid rate limits.
+- **🛡️ Automatic Failover & Retries**: If a key hits a rate limit (HTTP 429) or fails, the gateway automatically retries the request using a different key from the pool, ensuring maximum uptime.
+- **👥 Multi-Tenancy & Isolation**: Support for multiple tenants, each with their own isolated usage logs and settings.
+- **🤖 Default Model Injection**: Configure a "Default Model" per tenant. If a client request omits the `model` field, the gateway automatically injects the preferred model before proxying to Ollama.
+- **📊 Detailed Audit Logs**: Complete visibility into every API call. Track timestamps, endpoints, models used, latency, and full request/response bodies.
+- **🔐 Flexible Authentication**: 
+  - **System API Keys**: For seamless programmatic integration.
+  - **JWT Auth**: For secure dashboard management.
+- **🎮 Built-in Playground**: Test models directly from the admin dashboard with a modern chat interface.
+- **📖 Integrated Documentation**: Dynamic API documentation that updates based on your active configuration.
 
-## Architecture
+## 🛠️ Technology Stack
 
-Client -> Gateway (NestJS) -> [Pool of API Keys] -> Ollama Cloud
+- **Backend**: [NestJS](https://nestjs.com/) (Node.js framework)
+- **Frontend**: [React](https://reactjs.org/) + [Vite](https://vitejs.dev/)
+- **Database**: [SQLite](https://www.sqlite.org/) with [Prisma ORM](https://www.prisma.io/)
+- **Styling**: Vanilla CSS + Glassmorphism UI
 
-- **Backend:** Node.js + NestJS + SQLite (Prisma ORM)
-- **Frontend:** React + Vite + TailwindCSS v4 + Recharts
+## 🚀 Getting Started
 
-## Quick Start (Local Development)
+### Prerequisites
 
-### 1. Install Dependencies
-From the root directory, run:
-\`\`\`bash
-npm run install:all
-\`\`\`
+- Node.js (v18+)
+- npm or yarn
 
-### 2. Setup the Database
-The project uses a local SQLite database (\`database.db\`). Initialize it and seed the default users:
-\`\`\`bash
-npm run db:migrate
-npm run db:seed
-\`\`\`
+### Installation
 
-*This will create an Admin user (`admin` / `admin123`) and a Demo user (`demo` / `demo123`).*
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-repo/ollama-pool-gateway.git
+   cd ollama-pool-gateway
+   ```
 
-### 3. Start the Application
-Run both the frontend and backend simultaneously:
-\`\`\`bash
-npm run dev
-\`\`\`
+2. **Setup the Backend**:
+   ```bash
+   cd backend
+   npm install
+   cp .env.example .env
+   npx prisma migrate dev --name init
+   npx prisma db seed
+   npm run start:dev
+   ```
 
-The applications will be available at:
-- **Frontend UI:** http://localhost:5173
-- **Backend API:** http://localhost:3333
-- **API Swagger Docs:** http://localhost:3333/docs
+3. **Setup the Frontend**:
+   ```bash
+   cd ../frontend
+   npm install
+   npm run dev
+   ```
 
-## How to Test the Key Rotation
+## 📖 Usage
 
-1. Go to the **Frontend Dashboard** (http://localhost:5173) and log in with `admin` / `admin123`.
-2. Navigate to the **API Keys** page.
-3. Click **Add Key** and enter a valid Ollama Cloud API Key (or a fake one to see how errors are handled). Add at least two keys.
-4. Navigate to the **Playground** page.
-5. Send a message in the chat interface. You will see the **Gateway Routing Log** on the right side.
-6. The gateway will try the first key. If it succeeds, it returns the response. If the key is exhausted (429), the log will show the key moving to cooldown and the system automatically trying the second key.
+### Using the Gateway
 
-## Integrating with your Apps
+Simply point your Ollama clients to the gateway instead of the direct Ollama API.
 
-You can use the gateway exactly like you use the standard Ollama API. Just point the base URL to \`http://localhost:3333\` and add the Bearer Token.
+**Example Request (with System API Key):**
 
-\`\`\`bash
-curl -X POST http://localhost:3333/api/chat \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer YOUR_TENANT_JWT_TOKEN" \\
+```bash
+curl http://localhost:3333/api/chat \
+  -H "Authorization: Bearer YOUR_SYSTEM_KEY" \
   -d '{
-    "model": "llama3.2",
-    "messages": [
-      { "role": "user", "content": "Hello!" }
-    ],
-    "stream": false
+    "messages": [{ "role": "user", "content": "Hello!" }]
   }'
-\`\`\`
+```
+*Note: If "model" is omitted, your configured default model will be used.*
 
-*Note: You can get your Tenant JWT Token from the Network tab in your browser when logged into the Dashboard, or by calling `/api/auth/login`.*
-# ollama-server-rotate-key
+### API Endpoints
+
+- `POST /api/chat`: Proxy for Ollama Chat API.
+- `POST /api/generate`: Proxy for Ollama Generation API.
+- `GET /api/models`: List available models through the pool.
+- `GET /api/usage/logs`: Access audit logs.
+
+## 🔒 Security
+
+- All API keys are stored securely.
+- Tenant isolation ensures that one user cannot see the logs or keys of another.
+- System API Keys provide a secure way to integrate without exposing dashboard credentials.
+
+## 📜 License
+
+This project is licensed under the MIT License.

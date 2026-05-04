@@ -10,17 +10,19 @@ export declare class UsageController {
     } & {
         id: string;
         createdAt: Date;
+        requestBody: string | null;
+        model: string | null;
         status: string;
         tenantId: string | null;
         statusCode: number | null;
         apiKeyLabel: string | null;
         endpoint: string;
-        model: string | null;
         latencyMs: number;
         tokensInput: number | null;
         tokensOutput: number | null;
         retryCount: number;
         errorMessage: string | null;
+        responseBody: string | null;
         apiKeyId: string | null;
     })[]>;
     getStats(): Promise<{

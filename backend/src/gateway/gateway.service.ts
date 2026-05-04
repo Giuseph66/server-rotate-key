@@ -23,6 +23,41 @@ export class GatewayService {
   ) {}
 
   /**
+   * Normalizes the request body. 
+   * Handles cases where the body is a string or a malformed object from urlencoded parsing.
+   */
+  private normalizeBody(body: any): any {
+    if (!body) return {};
+    
+    // If it's already a proper object with model, use it
+    if (typeof body === 'object' && body.model) return body;
+
+    // Handle case where body is a string (missing Content-Type: application/json)
+    if (typeof body === 'string') {
+      try {
+        return JSON.parse(body);
+      } catch (e) {
+        return body;
+      }
+    }
+
+    // Handle case where express urlencoded parser treats the whole JSON as a key
+    // e.g. { '{"model":"..."}': '' }
+    if (typeof body === 'object') {
+      const keys = Object.keys(body);
+      if (keys.length === 1 && body[keys[0]] === '') {
+        try {
+          return JSON.parse(keys[0]);
+        } catch (e) {
+          // not JSON, return as is
+        }
+      }
+    }
+
+    return body;
+  }
+
+  /**
    * Proxy a request to Ollama Cloud with automatic key rotation on 429.
    */
   async proxyRequest(
@@ -32,12 +67,20 @@ export class GatewayService {
   ): Promise<ProxyResult> {
     const settings = await this.prisma.settings.findUnique({ where: { id: 'global' } });
     const maxRetries = settings?.maxRetries || 3;
-    const baseUrl = settings?.ollamaBaseUrl || 'https://ollama.com';
+    const baseUrl = settings?.ollamaBaseUrl || 'https://api.ollama.com';
+    const normalizedBody = this.normalizeBody(body);
 
     const excludeKeyIds: string[] = [];
     const keysUsed: { id: string; label: string; result: string }[] = [];
     let retryCount = 0;
     const startTime = Date.now();
+
+    // Inject default model if missing
+    let finalModel = normalizedBody?.model;
+    if (!finalModel && tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+      finalModel = tenant?.defaultModel || 'llama3.2';
+    }
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       // Select a key
@@ -53,12 +96,13 @@ export class GatewayService {
         await this.usageService.logUsage({
           tenantId,
           endpoint,
-          model: body?.model,
+          model: finalModel,
           status: 'FAILED',
           statusCode: 503,
           latencyMs,
           retryCount,
           errorMessage: 'No available API keys in pool',
+          requestBody: JSON.stringify(normalizedBody),
         });
 
         throw new HttpException(
@@ -80,7 +124,7 @@ export class GatewayService {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${selectedKey.key}`,
           },
-          body: JSON.stringify({ ...body, stream: false }),
+          body: JSON.stringify({ ...normalizedBody, model: finalModel, stream: false }),
           signal: AbortSignal.timeout(120000), // 2min timeout
         });
 
@@ -105,12 +149,14 @@ export class GatewayService {
             apiKeyId: selectedKey.id,
             apiKeyLabel: selectedKey.label,
             endpoint,
-            model: body?.model,
+            model: finalModel,
             status: 'FAILED',
             statusCode: response.status,
             latencyMs,
             retryCount,
             errorMessage: errorText,
+            requestBody: JSON.stringify(normalizedBody),
+            responseBody: errorText,
           });
 
           const outStatus = response.status === 401 ? 502 : response.status;
@@ -127,8 +173,11 @@ export class GatewayService {
 
         await this.keyRotation.recordUsage(selectedKey.id);
 
+        // Determine the actual model used (prefer Ollama's response)
+        const actualModel = data.model || finalModel;
+
         // Estimate tokens
-        const inputText = JSON.stringify(body);
+        const inputText = JSON.stringify(normalizedBody);
         const outputText = JSON.stringify(data);
         const tokensInput = Math.ceil(inputText.length / 4);
         const tokensOutput = Math.ceil(outputText.length / 4);
@@ -138,13 +187,15 @@ export class GatewayService {
           apiKeyId: selectedKey.id,
           apiKeyLabel: selectedKey.label,
           endpoint,
-          model: body?.model,
+          model: actualModel,
           status: retryCount > 0 ? 'RETRIED' : 'SUCCESS',
           statusCode: 200,
           latencyMs,
           tokensInput,
           tokensOutput,
           retryCount,
+          requestBody: JSON.stringify(normalizedBody),
+          responseBody: JSON.stringify(data),
         });
 
         this.logger.log(`✅ Request successful via key "${selectedKey.label}" (${latencyMs}ms, ${retryCount} retries)`);
@@ -168,12 +219,13 @@ export class GatewayService {
           apiKeyId: selectedKey.id,
           apiKeyLabel: selectedKey.label,
           endpoint,
-          model: body?.model,
+          model: normalizedBody?.model,
           status: 'FAILED',
           statusCode: 0,
           latencyMs,
           retryCount,
           errorMessage: error.message,
+          requestBody: JSON.stringify(normalizedBody),
         });
 
         throw new HttpException(
@@ -188,12 +240,13 @@ export class GatewayService {
     await this.usageService.logUsage({
       tenantId,
       endpoint,
-      model: body?.model,
+      model: normalizedBody?.model,
       status: 'FAILED',
       statusCode: 429,
       latencyMs,
       retryCount,
       errorMessage: 'All keys rate limited after max retries',
+      requestBody: JSON.stringify(normalizedBody),
     });
 
     throw new HttpException(
@@ -217,12 +270,20 @@ export class GatewayService {
   ): Promise<{ stream: ReadableStream; keysUsed: { id: string; label: string; result: string }[] }> {
     const settings = await this.prisma.settings.findUnique({ where: { id: 'global' } });
     const maxRetries = settings?.maxRetries || 3;
-    const baseUrl = settings?.ollamaBaseUrl || 'https://ollama.com';
+    const baseUrl = settings?.ollamaBaseUrl || 'https://api.ollama.com';
+    const normalizedBody = this.normalizeBody(body);
 
     const excludeKeyIds: string[] = [];
     const keysUsed: { id: string; label: string; result: string }[] = [];
     let retryCount = 0;
     const startTime = Date.now();
+
+    // Inject default model if missing
+    let finalModel = normalizedBody?.model;
+    if (!finalModel && tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+      finalModel = tenant?.defaultModel || 'llama3.2';
+    }
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const selectedKey = attempt === 0
@@ -236,6 +297,7 @@ export class GatewayService {
         );
       }
 
+      // Inject default model if missing (already resolved outside loop)
       try {
         const response = await fetch(`${baseUrl}${endpoint}`, {
           method: 'POST',
@@ -243,7 +305,7 @@ export class GatewayService {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${selectedKey.key}`,
           },
-          body: JSON.stringify({ ...body, stream: true }),
+          body: JSON.stringify({ ...normalizedBody, model: finalModel, stream: true }),
         });
 
         if (response.status === 429) {
@@ -272,11 +334,13 @@ export class GatewayService {
           apiKeyId: selectedKey.id,
           apiKeyLabel: selectedKey.label,
           endpoint,
-          model: body?.model,
+          model: finalModel,
           status: retryCount > 0 ? 'RETRIED' : 'SUCCESS',
           statusCode: 200,
           latencyMs,
           retryCount,
+          requestBody: JSON.stringify(normalizedBody),
+          responseBody: '[Streaming Response]',
         });
 
         return { stream: response.body as any, keysUsed };
@@ -297,24 +361,29 @@ export class GatewayService {
    */
   async listModels(tenantId?: string) {
     const settings = await this.prisma.settings.findUnique({ where: { id: 'global' } });
-    const baseUrl = settings?.ollamaBaseUrl || 'https://ollama.com';
+    const baseUrl = settings?.ollamaBaseUrl || 'https://api.ollama.com';
 
     const selectedKey = await this.keyRotation.selectKey(tenantId);
     if (!selectedKey) {
       throw new HttpException({ error: 'No available API keys' }, 503);
     }
 
-    const response = await fetch(`${baseUrl}/api/tags`, {
-      headers: { Authorization: `Bearer ${selectedKey.key}` },
-      signal: AbortSignal.timeout(15000),
-    });
+    try {
+      const response = await fetch(`${baseUrl}/api/tags`, {
+        headers: { Authorization: `Bearer ${selectedKey.key}` },
+        signal: AbortSignal.timeout(15000),
+      });
 
-    if (!response.ok) {
-      const outStatus = response.status === 401 ? 502 : response.status;
-      throw new HttpException({ error: 'Failed to list models' }, outStatus);
+      if (!response.ok) {
+        const outStatus = response.status === 401 ? 502 : response.status;
+        throw new HttpException({ error: 'Failed to list models' }, outStatus);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException({ error: 'Network error', message: error.message }, 502);
     }
-
-    return response.json();
   }
 
   /**

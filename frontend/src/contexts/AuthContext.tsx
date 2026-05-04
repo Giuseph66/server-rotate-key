@@ -12,6 +12,7 @@ interface AuthContextType {
   tenant: Tenant | null;
   token: string | null;
   login: (name: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -37,6 +38,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('tenant', JSON.stringify(data.tenant));
   };
 
+  const register = async (name: string, email: string, password: string) => {
+    const { data } = await api.post('/auth/register', { name, email, password });
+    setToken(data.access_token);
+    setTenant(data.tenant);
+    localStorage.setItem('token', data.access_token);
+    localStorage.setItem('tenant', JSON.stringify(data.tenant));
+  };
+
   const logout = () => {
     setToken(null);
     setTenant(null);
@@ -50,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         tenant,
         token,
         login,
+        register,
         logout,
         isAuthenticated: !!token,
       }}

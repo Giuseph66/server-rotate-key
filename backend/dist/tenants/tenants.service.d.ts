@@ -41,6 +41,8 @@ export declare class TenantsService {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        systemApiKey: string | null;
+        defaultModel: string | null;
     }>;
     update(id: string, data: {
         name?: string;
@@ -56,6 +58,8 @@ export declare class TenantsService {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        systemApiKey: string | null;
+        defaultModel: string | null;
     }>;
     remove(id: string): Promise<{
         message: string;

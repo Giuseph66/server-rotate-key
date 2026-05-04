@@ -7,7 +7,9 @@ import {
   BookOpen, 
   LogOut,
   Menu,
-  X
+  X,
+  Users,
+  History
 } from 'lucide-react';
 import { useState } from 'react';
 import clsx from 'clsx';
@@ -24,7 +26,9 @@ export default function Layout() {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'API Keys', href: '/keys', icon: KeyRound },
+    ...(tenant?.role === 'admin' ? [{ name: 'Users', href: '/tenants', icon: Users }] : []),
     { name: 'Playground', href: '/playground', icon: TerminalSquare },
+    { name: 'Logs', href: '/logs', icon: History },
     { name: 'Docs', href: '/docs', icon: BookOpen },
   ];
 
@@ -62,15 +66,15 @@ export default function Layout() {
         </nav>
 
         <div className="p-4 border-t border-slate-800 shrink-0">
-          <div className="flex items-center gap-3 px-3 py-2 mb-2">
-            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-medium shrink-0">
+          <Link to="/profile" className="flex items-center gap-3 px-3 py-2 mb-2 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer group">
+            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-medium shrink-0 group-hover:bg-slate-700 transition-colors">
               {tenant?.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-200 truncate">{tenant?.name}</p>
+              <p className="text-sm font-medium text-slate-200 truncate group-hover:text-emerald-400 transition-colors">{tenant?.name}</p>
               <p className="text-xs text-slate-500 truncate">{tenant?.role}</p>
             </div>
-          </div>
+          </Link>
           <button
             onClick={logout}
             className="w-full flex items-center px-3 py-2 text-sm font-medium text-slate-400 rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-colors"

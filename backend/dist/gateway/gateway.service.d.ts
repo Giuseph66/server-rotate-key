@@ -19,6 +19,7 @@ export declare class GatewayService {
     private usageService;
     private readonly logger;
     constructor(prisma: PrismaService, keyRotation: KeyRotationService, usageService: UsageService);
+    private normalizeBody;
     proxyRequest(endpoint: string, body: any, tenantId?: string): Promise<ProxyResult>;
     proxyStreamRequest(endpoint: string, body: any, tenantId?: string): Promise<{
         stream: ReadableStream;

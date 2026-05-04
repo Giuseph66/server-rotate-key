@@ -7,14 +7,14 @@ export default function Playground() {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [model, setModel] = useState(() => localStorage.getItem('lastUsedModel') || 'llama3.2');
+  const [model, setModel] = useState(() => localStorage.getItem('lastUsedModel') || 'gemma3:4b');
   const [debugLog, setDebugLog] = useState<any[]>([]);
 
   const [modelsList, setModelsList] = useState<string[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredModels = modelsList.filter(m => 
+  const filteredModels = modelsList.filter(m =>
     m.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -25,7 +25,7 @@ export default function Playground() {
   useEffect(() => {
     const fetchModels = async () => {
       try {
-        const res = await api.get('/tags');
+        const res = await api.get('/models');
         if (res.data?.models) {
           setModelsList(res.data.models.map((m: any) => m.name));
         }
@@ -49,7 +49,7 @@ export default function Playground() {
     try {
       // Simulate real-time rotation debugging info
       const startTime = Date.now();
-      
+
       const res = await api.post('/chat', {
         model,
         messages: [...messages, { role: 'user', content: userMsg }],
@@ -57,19 +57,19 @@ export default function Playground() {
       });
 
       const latency = Date.now() - startTime;
-      
+
       const responseData = res.data?.data || res.data; // Gateway might wrap in 'data'
       const content = responseData.message?.content || responseData.response || '';
-      
+
       if (!content) {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: `⚠️ Received empty content. Raw response:\n${JSON.stringify(responseData, null, 2)}` 
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `⚠️ Received empty content. Raw response:\n${JSON.stringify(responseData, null, 2)}`
         }]);
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content }]);
       }
-      
+
       // Update debug log with actual rotation data from backend if available
       const keysUsed = res.data.keysUsed || [];
       if (keysUsed.length > 0) {
@@ -80,7 +80,7 @@ export default function Playground() {
           time: new Date().toLocaleTimeString()
         })));
       }
-      
+
       setDebugLog(prev => [...prev, {
         id: Math.random().toString(),
         message: `Response (${latency}ms, ${res.data.retryCount || 0} retries). Data size: ${JSON.stringify(responseData).length} bytes.`,
@@ -91,7 +91,7 @@ export default function Playground() {
     } catch (error: any) {
       console.error(error);
       const data = error.response?.data;
-      
+
       if (data?.keysUsed) {
         setDebugLog(data.keysUsed.map((k: any) => ({
           id: Math.random().toString(),
@@ -113,7 +113,7 @@ export default function Playground() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto h-[calc(100vh-8rem)] flex flex-col md:flex-row gap-6">
+    <div className="w-full h-full flex flex-col md:flex-row gap-6">
       {/* Chat Area */}
       <div className="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
@@ -121,7 +121,7 @@ export default function Playground() {
             <Bot className="w-5 h-5 text-emerald-400" />
             Model Playground
           </h2>
-          
+
           {/* Custom Searchable Dropdown */}
           <div className="relative w-64">
             <button
@@ -134,9 +134,9 @@ export default function Playground() {
 
             {isDropdownOpen && (
               <>
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={() => setIsDropdownOpen(false)} 
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setIsDropdownOpen(false)}
                 />
                 <div className="absolute top-full mt-2 left-0 right-0 z-20 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="p-2 border-b border-slate-800">
@@ -195,8 +195,8 @@ export default function Playground() {
                 </div>
                 <div className={clsx(
                   "px-4 py-3 rounded-2xl max-w-[80%]",
-                  msg.role === 'user' 
-                    ? "bg-emerald-600 text-white rounded-tr-none" 
+                  msg.role === 'user'
+                    ? "bg-emerald-600 text-white rounded-tr-none"
                     : "bg-slate-800 border border-slate-700 text-slate-200 rounded-tl-none whitespace-pre-wrap"
                 )}>
                   {msg.content}

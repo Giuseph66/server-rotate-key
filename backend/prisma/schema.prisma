@@ -18,8 +18,10 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  apiKeys   ApiKey[]
-  usageLogs UsageLog[]
+  systemApiKey String?   @unique
+  defaultModel String?
+  apiKeys      ApiKey[]
+  usageLogs    UsageLog[]
 }
 
 model ApiKey {
@@ -56,6 +58,8 @@ model UsageLog {
   tokensOutput  Int?     // Estimated output tokens
   retryCount    Int      @default(0) // Number of retries needed
   errorMessage  String?
+  requestBody   String?
+  responseBody  String?
   createdAt     DateTime @default(now())
 
   tenant Tenant? @relation(fields: [tenantId], references: [id])
@@ -67,5 +71,5 @@ model Settings {
   cooldownMinutes   Int    @default(5)    // How long a key stays in cooldown
   maxRetries        Int    @default(3)    // Max retry attempts per request
   rotationStrategy  String @default("round-robin") // round-robin | least-used
-  ollamaBaseUrl     String @default("https://ollama.com")
+  ollamaBaseUrl     String @default("https://api.ollama.com")
 }

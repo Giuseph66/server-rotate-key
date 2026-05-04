@@ -18,7 +18,12 @@ async function bootstrap() {
     });
     const config = new swagger_1.DocumentBuilder()
         .setTitle('Ollama Pool Gateway')
-        .setDescription('Multi-tenant API key rotation gateway for Ollama Cloud')
+        .setDescription('Multi-tenant API key rotation gateway for Ollama Cloud.\n\n' +
+        '### Authentication\n' +
+        'Most endpoints require a **Bearer Token**. You can use either:\n' +
+        '1. A **JWT Token** obtained via `/api/auth/login` (for web UI use).\n' +
+        '2. A **System API Key** generated in your Profile (for programmatic API use).\n\n' +
+        'Pass the token in the `Authorization` header: `Authorization: Bearer <your_token_or_key>`')
         .setVersion('1.0')
         .addBearerAuth()
         .build();

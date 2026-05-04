@@ -37,6 +37,8 @@ export declare class TenantsController {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        systemApiKey: string | null;
+        defaultModel: string | null;
     }>;
     update(id: string, dto: UpdateTenantDto): Promise<{
         id: string;
@@ -46,6 +48,8 @@ export declare class TenantsController {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        systemApiKey: string | null;
+        defaultModel: string | null;
     }>;
     remove(id: string): Promise<{
         message: string;

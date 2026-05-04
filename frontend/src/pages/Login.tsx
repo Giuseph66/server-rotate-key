@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { KeyRound, Lock, User } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { KeyRound, Lock, User, Eye, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Login() {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -51,7 +52,7 @@ export default function Login() {
           )}
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-300 ml-1">Username</label>
+            <label className="text-sm font-medium text-slate-300 ml-1">Username or Email</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <User className="h-5 w-5 text-slate-500" />
@@ -61,7 +62,7 @@ export default function Login() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2.5 bg-slate-950/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
-                placeholder="admin"
+                placeholder="admin or email@example.com"
                 required
               />
             </div>
@@ -74,13 +75,20 @@ export default function Login() {
                 <Lock className="h-5 w-5 text-slate-500" />
               </div>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2.5 bg-slate-950/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                className="block w-full pl-10 pr-10 py-2.5 bg-slate-950/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
                 placeholder="••••••••"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
             </div>
           </div>
 
@@ -97,8 +105,13 @@ export default function Login() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
           
-          <div className="mt-6 text-center text-xs text-slate-500">
-            Default credentials: <span className="text-slate-400 font-mono">admin / admin123</span>
+          <div className="mt-8 text-center text-sm">
+            <p className="text-slate-500">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">
+                Sign Up
+              </Link>
+            </p>
           </div>
         </form>
       </div>

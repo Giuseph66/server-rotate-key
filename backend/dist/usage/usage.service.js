@@ -34,6 +34,8 @@ let UsageService = UsageService_1 = class UsageService {
                     tokensOutput: params.tokensOutput || null,
                     retryCount: params.retryCount || 0,
                     errorMessage: params.errorMessage || null,
+                    requestBody: params.requestBody || null,
+                    responseBody: params.responseBody || null,
                 },
             });
         }

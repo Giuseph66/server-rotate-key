@@ -12,12 +12,13 @@ const gateway_service_1 = require("./gateway.service");
 const gateway_controller_1 = require("./gateway.controller");
 const key_pool_module_1 = require("../key-pool/key-pool.module");
 const usage_module_1 = require("../usage/usage.module");
+const auth_module_1 = require("../auth/auth.module");
 let GatewayModule = class GatewayModule {
 };
 exports.GatewayModule = GatewayModule;
 exports.GatewayModule = GatewayModule = __decorate([
     (0, common_1.Module)({
-        imports: [key_pool_module_1.KeyPoolModule, usage_module_1.UsageModule],
+        imports: [key_pool_module_1.KeyPoolModule, usage_module_1.UsageModule, auth_module_1.AuthModule],
         controllers: [gateway_controller_1.GatewayController],
         providers: [gateway_service_1.GatewayService],
     })

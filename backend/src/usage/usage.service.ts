@@ -14,6 +14,8 @@ interface LogUsageParams {
   tokensOutput?: number;
   retryCount?: number;
   errorMessage?: string;
+  requestBody?: string;
+  responseBody?: string;
 }
 
 @Injectable()
@@ -38,6 +40,8 @@ export class UsageService {
           tokensOutput: params.tokensOutput || null,
           retryCount: params.retryCount || 0,
           errorMessage: params.errorMessage || null,
+          requestBody: params.requestBody || null,
+          responseBody: params.responseBody || null,
         },
       });
     } catch (error) {
