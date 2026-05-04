@@ -97,7 +97,6 @@ curl http://localhost:3333/api/chat \
 ### API Endpoints
 
 - `POST /api/chat`: Proxy for Ollama Chat API.
-- `POST /api/generate`: Proxy for Ollama Generation API.
 - `GET /api/models`: List available models through the pool.
 - `GET /api/usage/logs`: Access audit logs.
 
