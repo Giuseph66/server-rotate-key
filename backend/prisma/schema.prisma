@@ -1,0 +1,71 @@
+// Ollama Pool Gateway - Prisma Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../database.db"
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  email     String?
+  password  String   // bcrypt hashed
+  role      String   @default("user") // admin | user
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  apiKeys   ApiKey[]
+  usageLogs UsageLog[]
+}
+
+model ApiKey {
+  id             String    @id @default(uuid())
+  label          String    // Friendly name for the key
+  key            String    // Plain text API key (as requested)
+  status         String    @default("ACTIVE") // ACTIVE | COOLING_DOWN | DISABLED
+  cooldownUntil  DateTime? // When cooling down, when it expires
+  errorCount429  Int       @default(0) // Total 429 errors received
+  totalRequests  Int       @default(0) // Total requests made with this key
+  lastUsedAt     DateTime?
+  lastTestedAt   DateTime?
+  lastTestResult String?   // SUCCESS | FAILED | null
+  isActive       Boolean   @default(true) // Manual toggle
+  tenantId       String?   // Optional: primary owner tenant
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant    Tenant?    @relation(fields: [tenantId], references: [id])
+  usageLogs UsageLog[]
+}
+
+model UsageLog {
+  id            String   @id @default(uuid())
+  tenantId      String?
+  apiKeyId      String?
+  apiKeyLabel   String?
+  endpoint      String   // /api/chat, /api/generate, etc.
+  model         String?  // Model used
+  status        String   // SUCCESS | FAILED | RETRIED
+  statusCode    Int?     // HTTP status code from Ollama
+  latencyMs     Int      // Response time in ms
+  tokensInput   Int?     // Estimated input tokens
+  tokensOutput  Int?     // Estimated output tokens
+  retryCount    Int      @default(0) // Number of retries needed
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  apiKey ApiKey?  @relation(fields: [apiKeyId], references: [id])
+}
+
+model Settings {
+  id                String @id @default("global")
+  cooldownMinutes   Int    @default(5)    // How long a key stays in cooldown
+  maxRetries        Int    @default(3)    // Max retry attempts per request
+  rotationStrategy  String @default("round-robin") // round-robin | least-used
+  ollamaBaseUrl     String @default("https://ollama.com")
+}

@@ -1,0 +1,18 @@
+{
+  "name": "ollama-pool-gateway",
+  "version": "1.0.0",
+  "description": "Ollama Pool Gateway - Multi-tenant API key rotation gateway for Ollama Cloud",
+  "private": true,
+  "scripts": {
+    "install:all": "cd backend && npm install --legacy-peer-deps && cd ../frontend && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd backend && npm run build && cd ../frontend && npm run build",
+    "db:migrate": "cd backend && npx prisma migrate dev",
+    "db:seed": "cd backend && npx prisma db seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

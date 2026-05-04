@@ -1,0 +1,115 @@
+Você é um arquiteto full-stack sênior. Crie um sistema chamado “Ollama Pool Gateway”, um servidor web multi-tenant que gerencia um pool rotativo de API Keys do Ollama Cloud para garantir alta disponibilidade e contornar limites de taxa (rate limits).
+
+CONTEXTO DO PROJETO
+
+O objetivo é criar um gateway inteligente para usar modelos do Ollama Cloud. Diferente de um sistema isolado, este gateway permite que múltiplos clientes cadastrem suas chaves e que o sistema utilize essas chaves de forma rotativa. Se a chave de um cliente atingir o limite de uso (Erro 429), o gateway deve automaticamente tentar a chamada usando outra chave disponível no pool.
+
+Referência funcional:
+- Ollama cloud API: https://ollama.com/api
+- Endpoint de chat: /api/chat
+- Endpoint de geração: /api/generate
+- Endpoint de listagem de modelos: /api/tags
+- Autenticação cloud direta: Authorization: Bearer <OLLAMA_API_KEY>
+- Modelos cloud no Ollama local geralmente usam sufixo “-cloud”, exemplo: gemma4:31b-cloud
+- Modelos cloud via https://ollama.com/api normalmente usam o nome direto, exemplo: gemma4:31b
+
+OBJETIVO
+
+Criar um sistema completo com:
+
+1. Backend API Gateway com lógica de rotação de chaves.
+2. Front-end administrativo para gerenciar o pool de chaves.
+3. Dashboard de tenants e monitoramento de saúde das chaves.
+4. Tela de testes (Playground) que demonstra o failover automático.
+5. Documentação da API intermediária com exemplos de integração.
+
+STACK SUGERIDA
+
+Use preferencialmente:
+
+Backend:
+- Node.js com NestJS (ou Express/TypeScript se preferir algo mais leve)
+- SQLite (banco de dados local em arquivo .db)
+- Prisma ORM ou Drizzle
+- Axios ou fetch nativo para chamadas HTTP
+- JWT para autenticação
+- Bcrypt para senha
+- Guardar tokens em texto plano, sem criptografar para facilitar backup e manutenção manual
+- Rate limit por tenant
+- Logs estruturados
+
+Frontend:
+- React com Vite
+- TypeScript
+- Tailwind CSS
+- Lucide React (ícones)
+- Tema escuro moderno e responsivo
+
+ARQUITETURA DO GATEWAY (O CORAÇÃO DO SISTEMA)
+
+O sistema deve funcionar como um proxy inteligente:
+
+Cliente -> Gateway -> [ Pool de API Keys ] -> Ollama Cloud
+
+Lógica de Rotação:
+1. Recebe a requisição (ex: /chat).
+2. Seleciona a chave primária do Tenant (se houver) ou a próxima chave saudável do Pool (Round Robin).
+3. Tenta a chamada no Ollama Cloud.
+4. Se o Ollama retornar 429 (Too Many Requests):
+   - Marca a chave atual como "Em espera" (Cooling Down) por X minutos.
+   - Seleciona a próxima chave disponível.
+   - Tenta novamente (até um limite de retentativas).
+5. Se retornar sucesso, devolve ao cliente e registra o consumo.
+
+REGRAS DO PROJETO
+
+1. Armazenamento Simples: Não é necessário criptografar as API Keys no banco (armazenar em texto simples conforme solicitado).
+2. Banco de Dados Local: Usar SQLite para facilitar a portabilidade e evitar dependências de infraestrutura complexa.
+3. Multi-Tenancy: Embora as chaves sejam compartilhadas no pool para failover, o sistema deve registrar quem fez a chamada para fins de estatística.
+4. Visibilidade: O dashboard deve mostrar quais chaves estão ativas, quais estão em "cooling down" e o tempo restante para voltarem ao pool.
+
+MÓDULOS DO BACKEND
+
+1. KeyPoolModule:
+- CRUD de API Keys.
+- Monitor de saúde das chaves (último teste, status, contador de erros 429).
+- Lógica de seleção (Round Robin ou Menos Usada).
+
+2. GatewayModule:
+- Proxy para /chat e /generate.
+- Middleware de tratamento de retentativas automáticas.
+
+3. UsageModule:
+- Logs de consumo por tenant e por chave.
+- Estimativa de tokens (chars / 4).
+- Latência média.
+
+4. Database:
+- SQLite com tabelas: Tenants, ApiKeys, UsageLogs, Settings.
+
+FRONT-END (UI/UX)
+
+1. Dashboard:
+- Gráfico de requisições por minuto.
+- Status do Pool (ex: "5 chaves ativas, 2 em cooldown").
+- Top modelos mais usados.
+
+2. Gerenciamento de Pool:
+- Listagem de chaves com toggle para ativar/desativar manualmente.
+- Botão "Testar todas as chaves agora".
+
+3. Playground:
+- Interface de chat para testar a rotação.
+- Log lateral em tempo real mostrando: "Chave A falhou (429) -> Tentando com Chave B -> Sucesso!".
+
+4. Documentação:
+- Exemplos de CURL, JavaScript e Python para consumir o gateway.
+
+ENTREGÁVEIS
+
+1. Código fonte organizado (Monorepo ou pastas separadas).
+2. Arquivo `database.db` inicial ou migrations automáticas.
+3. README.md explicando como adicionar a primeira chave e testar a rotação.
+4. Instruções para rodar localmente com `npm install` e `npm run dev`.
+
+IMPORTANTE: O foco é a praticidade e a inteligência da rotação. Evite configurações complexas de infraestrutura.
