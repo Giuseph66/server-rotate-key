@@ -1,5 +1,7 @@
 # compiled output
 /dist
+**/dist/
+package-lock.json
 /node_modules
 
 # Logs
@@ -46,5 +48,3 @@ yarn-error.log
 # Prisma and DB
 database.db-journal
 database.db
-dist
-package-lock.json
