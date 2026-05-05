@@ -20,10 +20,27 @@ export default function Docs() {
     fetchProfile();
   }, []);
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
+  const copyToClipboard = async (text: string, id: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      setCopied(id);
+      setTimeout(() => setCopied(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+    }
   };
 
   return (
@@ -79,7 +96,7 @@ export default function Docs() {
               </p>
               <button
                 onClick={() => {
-                  const md = `# Ollama Pool Gateway - Integration Guide\n\n**Base URL:** \`${baseUrl}\`\n**Authentication:**\n- Header \`Authorization: Bearer <YOUR_SYSTEM_API_KEY>\`\n- Header \`Content-Type: application/json\`\n\n> Get your System API Key from the **Profile** page.\n\n## Endpoints\n\n### 1. Chat Completion\n- **URL:** \`/api/chat\`\n- **Method:** \`POST\`\n- **Headers:** Includes \`Content-Type: application/json\`\n- **Body:**\n  \`\`\`json\n  {\n    "model": "gemma3:4b",\n    "messages": [{ "role": "user", "content": "Hello!" }],\n    "stream": false\n  }\n  \`\`\`\n- **Behavior:** Acts exactly like standard Ollama API. The gateway handles 429 rate limit retries automatically.\n\n### 2. List Models\n- **URL:** \`/api/models\`\n- **Method:** \`GET\`\n- **Behavior:** Returns available models in the active pool key.\n\n### 3. Change Default Model\n- **URL:** \`/api/auth/profile/default-model\`\n- **Method:** \`PUT\`\n- **Auth:** Requires JWT Token\n- **Body:** \`{"model": "llama3"}\`\n\n## Error Handling\n- \`429 Rate Limit\`: Intercepted and handled automatically by the gateway. If exhausted, it returns 429.\n- \`502 Bad Gateway\`: Upstream Ollama Cloud API key is invalid or unauthorized.\n`;
+                  const md = `# Ollama Pool Gateway - AI Integration Context\n\n## 🔗 Base Configuration\n- **Base URL:** \`${baseUrl}\`\n- **Authentication:** Header \`Authorization: Bearer <YOUR_SYSTEM_API_KEY>\`\n- **Header:** \`Content-Type: application/json\`\n\n## 🛠️ API Endpoints\n\n### 1. Chat Completion (\`/api/chat\`)\n- **Method:** \`POST\`\n- **Body Schema:**\n  \`\`\`json\n  {\n    "model": "gemma3:4b",\n    "messages": [{ "role": "user", "content": "Hello!" }],\n    "stream": false\n  }\n  \`\`\`\n- **Gateway Behavior:**\n  - **Auto-Retry:** If a key returns a \`429 Rate Limit\`, the gateway automatically retries with a different key.\n  - **Model Injection:** If \`model\` is omitted, the gateway injects the tenant's **Default Model**.\n\n### 2. List Models (\`/api/models\`)\n- **Method:** \`GET\`\n- **Behavior:** Returns available models in the active pool.\n\n## 🚨 Error Handling\n- \`429 Rate Limit\`: Returned only if **all** keys in the pool are exhausted.\n- \`502 Bad Gateway\`: Upstream Ollama Cloud API network error or invalid keys.\n- \`503 Service Unavailable\`: No active keys available in the pool.\n\n## 💡 Developer Tips\n- **No Manual Retries**: The gateway handles 429 retries automatically.\n- **Streaming**: Supports \`ndjson\` streaming just like the original Ollama API.\n`;
                   copyToClipboard(md, 'ai-markdown');
                 }}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 rounded-lg text-xs font-medium text-purple-400 transition-colors"
