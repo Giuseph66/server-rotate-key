@@ -19,7 +19,17 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   systemApiKey String?   @unique
+  defaultProvider String? @default("ollama")
   defaultModel String?
+  
+  // ChatGPT Codex Auth
+  chatgptAccessToken  String?
+  chatgptRefreshToken String?
+  chatgptExpiresAt    DateTime?
+  chatgptAccountId    String?
+  pendingOAuthState    String?
+  pendingCodeVerifier  String?
+
   apiKeys      ApiKey[]
   usageLogs    UsageLog[]
 }
@@ -49,6 +59,7 @@ model UsageLog {
   tenantId      String?
   apiKeyId      String?
   apiKeyLabel   String?
+  provider      String   @default("ollama") // ollama | codex
   endpoint      String   // /api/chat, /api/generate, etc.
   model         String?  // Model used
   status        String   // SUCCESS | FAILED | RETRIED

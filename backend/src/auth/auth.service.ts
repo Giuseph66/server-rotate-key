@@ -57,9 +57,12 @@ export class AuthService {
         email: true,
         role: true,
         systemApiKey: true,
+        defaultProvider: true,
         defaultModel: true,
         isActive: true,
         createdAt: true,
+        chatgptAccessToken: true,
+        chatgptAccountId: true,
       },
     });
     if (!tenant) throw new UnauthorizedException('Tenant not found');
@@ -83,6 +86,14 @@ export class AuthService {
       where: { id },
       data: { defaultModel: model },
       select: { defaultModel: true },
+    });
+  }
+
+  async updateDefaultProvider(id: string, provider: string) {
+    return this.prisma.tenant.update({
+      where: { id },
+      data: { defaultProvider: provider },
+      select: { defaultProvider: true },
     });
   }
 

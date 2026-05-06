@@ -1,52 +1,46 @@
-# 🚀 Ollama Pool Gateway
+# 🚀 Server Rotate Key
 
-Ollama Pool Gateway is a high-performance, multi-tenant proxy designed to optimize and scale your interaction with the Ollama Cloud API. It provides a robust layer of abstraction that handles API key rotation, automatic failover, and comprehensive usage auditing.
+**Server Rotate Key** is a high-performance, multi-tenant AI gateway designed to unify, optimize, and scale your interaction with multiple LLM providers. It acts as a resilient proxy layer that handles API key rotation for **Ollama Cloud** and seamless integration with **ChatGPT (Codex)**, ensuring high availability and comprehensive auditing for enterprise applications.
 
 ## 🌟 Key Features
 
-- **🔄 Intelligent Key Rotation**: Manage a pool of multiple Ollama Cloud API keys. The gateway automatically rotates keys to maximize throughput and avoid rate limits.
-- **🛡️ Automatic Failover & Retries**: If a key hits a rate limit (HTTP 429) or fails, the gateway automatically retries the request using a different key from the pool, ensuring maximum uptime.
-- **👥 Multi-Tenancy & Isolation**: Support for multiple tenants, each with their own isolated usage logs and settings.
-- **🤖 Default Model Injection**: Configure a "Default Model" per tenant. If a client request omits the `model` field, the gateway automatically injects the preferred model before proxying to Ollama.
-- **📊 Detailed Audit Logs**: Complete visibility into every API call. Track timestamps, endpoints, models used, latency, and full request/response bodies.
-- **🔐 Flexible Authentication**: 
-  - **System API Keys**: For seamless programmatic integration.
-  - **JWT Auth**: For secure dashboard management.
-- **🎮 Built-in Playground**: Test models directly from the admin dashboard with a modern chat interface.
-- **📖 Integrated Documentation**: Dynamic API documentation that updates based on your active configuration.
+- **🔄 Multi-Provider Engine**: Support for **Ollama Cloud** (pooled keys) and **ChatGPT Codex** (direct account connection) through a unified API.
+- **⚡ Intelligent Key Rotation**: Automatically manages a pool of multiple API keys. The gateway distributes load and rotates keys to maximize throughput.
+- **🛡️ Automatic Failover (Smart Retry)**: Intercepts rate limit errors (HTTP 429) from upstream providers and instantly retries with the next available key/connection.
+- **🤖 Default Model & Provider Injection**: Configure a "Default Model" and "Default Provider" per tenant. Client requests can be as simple as sending messages—the gateway handles the rest.
+- **📊 Premium Analytics Dashboard**: A state-of-the-art Glassmorphism dashboard with real-time activity charts, success/failure metrics, and detailed audit logs.
+- **🔐 Enterprise Security**:
+  - **System API Keys**: Secure programmatic integration without exposing account credentials.
+  - **Tenant Isolation**: Complete separation of keys, logs, and settings between users.
+- **📖 Developer Portal**: Dynamic, interactive API documentation and a built-in **Model Playground** for instant testing.
 
-## 🏗️ How it Works
+## 🏗️ Architecture
 
-The gateway acts as a smart middleman between your applications and the Ollama Cloud.
+The gateway acts as an intelligent middleman, abstracting the complexity of multiple backends.
 
 ```mermaid
-graph LR
-    App[Your Application] -->|API Call| Gateway[Ollama Pool Gateway]
+graph TD
+    App[Your Application] -->|API Call| Gateway[Server Rotate Key]
     subgraph "Gateway Logic"
-        Gateway --> Auth[Auth & Tenant Check]
-        Auth --> Inject[Model Injection]
-        Inject --> Select[Key Rotation & Selection]
+        Gateway --> Auth[Auth & Tenant Context]
+        Auth --> Engine{Routing Engine}
+        Engine -->|Provider: Ollama| Rotation[Key Rotation & Failover]
+        Engine -->|Provider: Codex| ChatGPT[ChatGPT Codex Service]
     end
-    Select -->|Proxy| Ollama[Ollama Cloud API]
-    Ollama -->|Success/429| Gateway
-    Gateway -->|Retry if 429| Select
+    Rotation -->|Success/429| Ollama[Ollama Cloud API]
+    Ollama -->|Retry if 429| Rotation
+    ChatGPT -->|Proxy| OpenAI[OpenAI/Codex Infrastructure]
     Gateway -->|Response| App
 ```
 
-1.  **Auth**: Validates the request via JWT or System API Key.
-2.  **Model Injection**: If `model` is missing, it looks up the tenant's default.
-3.  **Rotation**: Selects the best available key (least used or round-robin).
-4.  **Failover**: If Ollama returns a 429 (Rate Limit), the key is put in "cooldown" and the gateway immediately retries with a new key.
-5.  **Logging**: The entire transaction is recorded for auditing and performance monitoring.
-
 ## 🛠️ Technology Stack
 
-- **Backend**: [NestJS](https://nestjs.com/) (Node.js framework)
+- **Backend**: [NestJS](https://nestjs.com/) (Node.js)
 - **Frontend**: [React](https://reactjs.org/) + [Vite](https://vitejs.dev/)
-- **Database**: [SQLite](https://www.sqlite.org/) with [Prisma ORM](https://www.prisma.io/)
-- **Styling**: Vanilla CSS + Glassmorphism UI
+- **Database**: [SQLite](https://www.sqlite.org/) + [Prisma ORM](https://www.prisma.io/)
+- **Styling**: Vanilla CSS + Tailwind-inspired Modern UI (Glassmorphism)
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -79,32 +73,30 @@ graph LR
 
 ## 📖 Usage
 
-### Using the Gateway
+Point your applications to the gateway instead of individual provider APIs.
 
-Simply point your Ollama clients to the gateway instead of the direct Ollama API.
-
-**Example Request (with System API Key):**
-
+**Example Request (Ollama with System Key):**
 ```bash
 curl http://localhost:3333/api/chat \
   -H "Authorization: Bearer YOUR_SYSTEM_KEY" \
+  -H "Content-Type: application/json" \
   -d '{
-    "messages": [{ "role": "user", "content": "Hello!" }]
+    "provedor": "ollama",
+    "messages": [{ "role": "user", "content": "Explain quantum physics." }]
   }'
 ```
-*Note: If "model" is omitted, your configured default model will be used.*
 
-### API Endpoints
-
-- `POST /api/chat`: Proxy for Ollama Chat API.
-- `GET /api/models`: List available models through the pool.
-- `GET /api/usage/logs`: Access audit logs.
-
-## 🔒 Security
-
-- All API keys are stored securely.
-- Tenant isolation ensures that one user cannot see the logs or keys of another.
-- System API Keys provide a secure way to integrate without exposing dashboard credentials.
+**Example Request (ChatGPT Codex):**
+```bash
+curl http://localhost:3333/api/chat \
+  -H "Authorization: Bearer YOUR_SYSTEM_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provedor": "codex",
+    "model": "GPT-5.5",
+    "messages": [{ "role": "user", "content": "Write a python script." }]
+  }'
+```
 
 ## 📜 License
 

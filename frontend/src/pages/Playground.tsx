@@ -8,6 +8,7 @@ export default function Playground() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState(() => localStorage.getItem('lastUsedModel') || 'gemma3:4b');
+  const [provider, setProvider] = useState<'ollama' | 'codex'>(() => (localStorage.getItem('lastUsedProvider') as any) || 'ollama');
   const [debugLog, setDebugLog] = useState<any[]>([]);
 
   const [modelsList, setModelsList] = useState<string[]>([]);
@@ -20,21 +21,58 @@ export default function Playground() {
 
   useEffect(() => {
     localStorage.setItem('lastUsedModel', model);
-  }, [model]);
+    localStorage.setItem('lastUsedProvider', provider);
+  }, [model, provider]);
+
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchModels = async () => {
       try {
         const res = await api.get('/models');
         if (res.data?.models) {
-          setModelsList(res.data.models.map((m: any) => m.name));
+          setOllamaModels(res.data.models.map((m: any) => m.name));
         }
       } catch (error) {
         console.error('Failed to fetch models', error);
       }
     };
     fetchModels();
+    fetchProfile();
   }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await api.get('/auth/profile');
+      if (res.data.defaultProvider && !localStorage.getItem('lastUsedProvider')) {
+        setProvider(res.data.defaultProvider);
+      }
+      if (res.data.defaultModel && !localStorage.getItem('lastUsedModel')) {
+        setModel(res.data.defaultModel);
+      }
+    } catch (err) {
+      console.error('Failed to fetch profile defaults');
+    }
+  };
+
+  useEffect(() => {
+    if (provider === 'codex') {
+      const chatGptModels = ['GPT-5.5', 'GPT-5.4', 'GPT-5.4-Mini', 'GPT-5.3-Codex', 'GPT-5.2'];
+      setModelsList(chatGptModels);
+      
+      // Auto-switch to a valid Codex model if the current one is from Ollama
+      if (!chatGptModels.includes(model)) {
+        setModel('GPT-5.5');
+      }
+    } else {
+      setModelsList(ollamaModels);
+      
+      // Auto-switch to a valid Ollama model if the current one is from Codex
+      if (ollamaModels.length > 0 && !ollamaModels.includes(model)) {
+        setModel(ollamaModels[0]);
+      }
+    }
+  }, [provider, ollamaModels]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +90,7 @@ export default function Playground() {
 
       const res = await api.post('/chat', {
         model,
+        provedor: provider,
         messages: [...messages, { role: 'user', content: userMsg }],
         stream: false
       });
@@ -116,21 +155,32 @@ export default function Playground() {
     <div className="w-full h-full flex flex-col md:flex-row gap-6">
       {/* Chat Area */}
       <div className="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-          <h2 className="font-medium text-white flex items-center gap-2">
+        <div className="p-4 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/50">
+          <h2 className="font-medium text-white flex items-center gap-2 shrink-0">
             <Bot className="w-5 h-5 text-emerald-400" />
             Model Playground
           </h2>
 
-          {/* Custom Searchable Dropdown */}
-          <div className="relative w-64">
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="w-full flex justify-between items-center px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white hover:border-emerald-500/50 transition-colors focus:ring-1 focus:ring-emerald-500 outline-none"
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            {/* Provider Dropdown */}
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as 'ollama' | 'codex')}
+              className="w-full md:w-40 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white hover:border-emerald-500/50 transition-colors focus:ring-1 focus:ring-emerald-500 outline-none"
             >
-              <span className="truncate">{model}</span>
-              <RefreshCw className={clsx("w-3.5 h-3.5 text-slate-500 transition-transform", isDropdownOpen && "rotate-180")} />
-            </button>
+              <option value="ollama">Ollama</option>
+              <option value="codex">ChatGPT (Codex)</option>
+            </select>
+
+            {/* Custom Searchable Dropdown */}
+            <div className="relative w-full md:w-64">
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="w-full flex justify-between items-center px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white hover:border-emerald-500/50 transition-colors focus:ring-1 focus:ring-emerald-500 outline-none"
+              >
+                <span className="truncate">{model}</span>
+                <RefreshCw className={clsx("w-3.5 h-3.5 text-slate-500 transition-transform", isDropdownOpen && "rotate-180")} />
+              </button>
 
             {isDropdownOpen && (
               <>
@@ -174,6 +224,7 @@ export default function Playground() {
                 </div>
               </>
             )}
+          </div>
           </div>
         </div>
 

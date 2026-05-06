@@ -40,7 +40,7 @@ export default function Layout() {
           <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
             <KeyRound className="w-5 h-5 text-emerald-400" />
           </div>
-          <span className="font-bold text-white text-sm leading-tight tracking-tight">Ollama Server Rotate Key</span>
+          <span className="font-bold text-white text-sm leading-tight tracking-tight">Server Rotate Key</span>
         </div>
 
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
@@ -91,7 +91,7 @@ export default function Layout() {
           <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
             <KeyRound className="w-5 h-5 text-emerald-400" />
           </div>
-          <span className="font-bold text-white text-sm tracking-tight truncate">Ollama Server Rotate Key</span>
+          <span className="font-bold text-white text-sm tracking-tight truncate">Server Rotate Key</span>
         </div>
         <button 
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

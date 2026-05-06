@@ -13,8 +13,17 @@ export default function Profile() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isGeneratingKey, setIsGeneratingKey] = useState(false);
   const [isUpdatingModel, setIsUpdatingModel] = useState(false);
+  const [isUpdatingProvider, setIsUpdatingProvider] = useState(false);
   const [copied, setCopied] = useState(false);
   const [curlCopied, setCurlCopied] = useState(false);
+  const [usageMode, setUsageMode] = useState<'ollama' | 'codex'>('ollama');
+
+  // Initialize usageMode once profile is loaded
+  useEffect(() => {
+    if (profile?.defaultProvider) {
+      setUsageMode(profile.defaultProvider);
+    }
+  }, [profile]);
 
   // Dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -29,7 +38,11 @@ export default function Profile() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  const filteredModels = models.filter(m => 
+  const [codexModels, setCodexModels] = useState<string[]>(['GPT-5.5', 'GPT-5.4', 'GPT-5.4-Mini', 'GPT-5.3-Codex', 'GPT-5.2']);
+
+  const availableModels = profile?.defaultProvider === 'codex' ? codexModels : models;
+
+  const filteredModels = availableModels.filter(m =>
     m.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -52,12 +65,17 @@ export default function Profile() {
   const fetchModels = async () => {
     try {
       const res = await api.get('/models');
-      const modelList = res.data.models?.map((m: any) => m.name) || [];
-      setModels(modelList);
+      const ollamaList = res.data.ollama?.map((m: any) => m.name) || [];
+      const codexList = res.data.codex?.map((m: any) => m.name) || [];
+      
+      setModels(ollamaList);
+      if (codexList.length > 0) setCodexModels(codexList);
     } catch (err) {
       console.error('Failed to fetch models');
     }
   };
+
+
 
   const handleGenerateKey = async () => {
     setIsGeneratingKey(true);
@@ -92,6 +110,38 @@ export default function Profile() {
     }
   };
 
+  const handleUpdateDefaultProvider = async (provider: string) => {
+    setIsUpdatingProvider(true);
+    try {
+      let newModel = profile?.defaultModel;
+
+      // Auto-switch model if current one is incompatible
+      if (provider === 'codex') {
+        if (!codexModels.includes(newModel)) {
+          newModel = 'GPT-5.5';
+        }
+      } else {
+        if (codexModels.includes(newModel) && models.length > 0) {
+          newModel = models[0];
+        }
+      }
+
+      await api.put('/auth/profile/default-provider', { provider });
+
+      // If model changed, update it too
+      if (newModel !== profile?.defaultModel) {
+        await api.put('/auth/profile/default-model', { model: newModel });
+      }
+
+      setProfile({ ...profile, defaultProvider: provider, defaultModel: newModel });
+      toast.success(`Provider changed to ${provider} (Model: ${newModel})`);
+    } catch (err) {
+      toast.error('Failed to update default provider');
+    } finally {
+      setIsUpdatingProvider(false);
+    }
+  };
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
@@ -111,6 +161,8 @@ export default function Profile() {
       setIsResettingPassword(false);
     }
   };
+
+
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -161,65 +213,97 @@ export default function Profile() {
               <Smartphone className="w-4 h-4 text-emerald-400" />
               Gateway Settings
             </h3>
-            <div className="space-y-4">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Default Model</label>
-              
-              <div className="relative">
-                <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  disabled={isUpdatingModel}
-                  className="w-full flex justify-between items-center px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white hover:border-emerald-500/50 transition-colors focus:ring-1 focus:ring-emerald-500 outline-none disabled:opacity-50"
-                >
-                  <span className="truncate">{profile?.defaultModel || 'Select a model'}</span>
-                  <ChevronDown className={clsx("w-4 h-4 text-slate-500 transition-transform", isDropdownOpen && "rotate-180")} />
-                </button>
-
-                {isDropdownOpen && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-10" 
-                      onClick={() => setIsDropdownOpen(false)} 
-                    />
-                    <div className="absolute top-full mt-2 left-0 right-0 z-20 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="p-2 border-b border-slate-800 bg-slate-950/50">
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Search models..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-600 focus:ring-1 focus:ring-emerald-500 outline-none"
-                        />
-                      </div>
-                      <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                        {filteredModels.length > 0 ? (
-                          filteredModels.map((m) => (
-                            <button
-                              key={m}
-                              onClick={() => handleUpdateDefaultModel(m)}
-                              className={clsx(
-                                "w-full text-left px-4 py-2.5 text-xs transition-colors hover:bg-emerald-500/10",
-                                profile?.defaultModel === m ? "text-emerald-400 bg-emerald-500/5 font-medium" : "text-slate-400 hover:text-white"
-                              )}
-                            >
-                              {m}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-4 py-3 text-xs text-slate-600 italic">No models found</div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-2">Default Provider</label>
+                <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    onClick={() => handleUpdateDefaultProvider('ollama')}
+                    disabled={isUpdatingProvider}
+                    className={clsx(
+                      "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                      profile?.defaultProvider === 'ollama'
+                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                        : "text-slate-500 hover:text-slate-300"
+                    )}
+                  >
+                    Ollama
+                  </button>
+                  <button
+                    onClick={() => handleUpdateDefaultProvider('codex')}
+                    disabled={isUpdatingProvider}
+                    className={clsx(
+                      "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                      profile?.defaultProvider === 'codex'
+                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                        : "text-slate-500 hover:text-slate-300"
+                    )}
+                  >
+                    Codex
+                  </button>
+                </div>
               </div>
 
-              <p className="text-[10px] text-slate-500 italic mt-4">
-                This model will be pre-selected in the playground and documentation examples.
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-2">Default Model</label>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    disabled={isUpdatingModel}
+                    className="w-full flex justify-between items-center px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white hover:border-emerald-500/50 transition-colors focus:ring-1 focus:ring-emerald-500 outline-none disabled:opacity-50"
+                  >
+                    <span className="truncate">{profile?.defaultModel || 'Select a model'}</span>
+                    <ChevronDown className={clsx("w-4 h-4 text-slate-500 transition-transform", isDropdownOpen && "rotate-180")} />
+                  </button>
+
+                  {isDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setIsDropdownOpen(false)}
+                      />
+                      <div className="absolute top-full mt-2 left-0 right-0 z-20 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="p-2 border-b border-slate-800 bg-slate-950/50">
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="Search models..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-600 focus:ring-1 focus:ring-emerald-500 outline-none"
+                          />
+                        </div>
+                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                          {filteredModels.length > 0 ? (
+                            filteredModels.map((m) => (
+                              <button
+                                key={m}
+                                onClick={() => handleUpdateDefaultModel(m)}
+                                className={clsx(
+                                  "w-full text-left px-4 py-2.5 text-xs transition-colors hover:bg-emerald-500/10",
+                                  profile?.defaultModel === m ? "text-emerald-400 bg-emerald-500/5 font-medium" : "text-slate-400 hover:text-white"
+                                )}
+                              >
+                                {m}
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-xs text-slate-600 italic">No models found</div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-500 italic">
+                These settings will be pre-selected in the playground and documentation examples.
               </p>
             </div>
           </div>
         </div>
+
 
         {/* Right Column: API & Security */}
         <div className="lg:col-span-2 space-y-6">
@@ -228,7 +312,7 @@ export default function Profile() {
             <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
               <Key className="w-32 h-32 text-white" />
             </div>
-            
+
             <div className="flex items-center justify-between mb-6 relative z-10">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Key className="w-5 h-5 text-emerald-400" />
@@ -247,7 +331,7 @@ export default function Profile() {
             {profile?.systemApiKey ? (
               <div className="space-y-4">
                 <p className="text-sm text-slate-400 leading-relaxed max-w-xl">
-                  Use this key to authenticate with the Ollama Gateway API programmatically. Keep it secret!
+                  Use this key to authenticate with the Gateway API programmatically. Keep it secret!
                 </p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 font-mono text-sm flex items-center justify-between group overflow-hidden">
@@ -273,22 +357,46 @@ export default function Profile() {
                   </div>
                 </div>
                 <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50 relative group/curl">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Quick Usage</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Quick Usage</h4>
+                    <div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                      <button
+                        onClick={() => setUsageMode('ollama')}
+                        className={clsx(
+                          "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                          usageMode === 'ollama' ? "bg-emerald-500 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+                        )}
+                      >
+                        Ollama
+                      </button>
+                      <button
+                        onClick={() => setUsageMode('codex')}
+                        className={clsx(
+                          "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                          usageMode === 'codex' ? "bg-emerald-500 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+                        )}
+                      >
+                        Codex
+                      </button>
+                    </div>
+                  </div>
+
                   <pre className="text-[11px] font-mono text-emerald-400/80 bg-slate-950 p-3 rounded-lg overflow-x-auto border border-emerald-500/10">
-                    curl http://localhost:3333/api/chat \<br/>
-                    &nbsp;&nbsp;-H "Authorization: Bearer {showApiKey ? profile.systemApiKey : '<YOUR_KEY>'}" \<br/>
-                    &nbsp;&nbsp;-H "Content-Type: application/json" \<br/>
-                    &nbsp;&nbsp;-d '{"{"} "model": "{profile?.defaultModel || 'llama3'}", "messages": [{"{"} "role": "user", "content": "hi" {"}"}] {"}"}'
+                    curl http://localhost:3333/api/chat \<br />
+                    &nbsp;&nbsp;-H "Authorization: Bearer {showApiKey ? profile.systemApiKey : '<YOUR_KEY>'}" \<br />
+                    &nbsp;&nbsp;-H "Content-Type: application/json" \<br />
+                    &nbsp;&nbsp;-d {`'{ "model": "${usageMode === 'codex' ? 'GPT-5.5' : (profile?.defaultModel || 'llama3')}", "provedor": "${usageMode}", "messages": [{"role": "user", "content": "hi"}] }'`}
                   </pre>
                   <button
                     onClick={() => {
-                      const curl = `curl http://localhost:3333/api/chat \\\n  -H "Authorization: Bearer ${profile?.systemApiKey || '<YOUR_KEY>'}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model": "${profile?.defaultModel || 'llama3'}", "messages": [{"role": "user", "content": "hi"}]}'`;
+                      const model = usageMode === 'codex' ? 'GPT-5.5' : (profile?.defaultModel || 'llama3');
+                      const curl = `curl http://localhost:3333/api/chat \\\n  -H "Authorization: Bearer ${profile?.systemApiKey || '<YOUR_KEY>'}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model": "${model}", "provedor": "${usageMode}", "messages": [{"role": "user", "content": "hi"}]}'`;
                       navigator.clipboard.writeText(curl);
                       setCurlCopied(true);
                       toast.success('Command copied!');
                       setTimeout(() => setCurlCopied(false), 2000);
                     }}
-                    className="absolute top-4 right-4 p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-400 hover:text-white transition-all opacity-0 group-hover/curl:opacity-100"
+                    className="absolute top-12 right-4 p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-400 hover:text-white transition-all opacity-0 group-hover/curl:opacity-100"
                     title="Copy to clipboard"
                   >
                     {curlCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -308,7 +416,7 @@ export default function Profile() {
               <Lock className="w-5 h-5 text-emerald-400" />
               Security Settings
             </h3>
-            
+
             <form onSubmit={handleResetPassword} className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-400">Current Password</label>
@@ -331,7 +439,7 @@ export default function Profile() {
                 </div>
               </div>
               <div className="hidden md:block" />
-              
+
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-400">New Password</label>
                 <div className="relative">
@@ -372,7 +480,7 @@ export default function Profile() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="md:col-span-2 flex justify-end mt-2">
                 <button
                   type="submit"

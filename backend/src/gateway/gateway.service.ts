@@ -2,6 +2,7 @@ import { Injectable, Logger, HttpException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { KeyRotationService, SelectedKey } from '../key-pool/key-rotation.service';
 import { UsageService } from '../usage/usage.service';
+import { CodexService } from './codex.service';
 
 export interface ProxyResult {
   success: boolean;
@@ -20,6 +21,7 @@ export class GatewayService {
     private prisma: PrismaService,
     private keyRotation: KeyRotationService,
     private usageService: UsageService,
+    private codexService: CodexService,
   ) {}
 
   /**
@@ -69,6 +71,14 @@ export class GatewayService {
     const maxRetries = settings?.maxRetries || 3;
     const baseUrl = settings?.ollamaBaseUrl || 'https://api.ollama.com';
     const normalizedBody = this.normalizeBody(body);
+    const tenant = tenantId ? await this.prisma.tenant.findUnique({ where: { id: tenantId } }) : null;
+    const provider = normalizedBody.provedor || tenant?.defaultProvider || 'ollama';
+    delete normalizedBody.provedor; // Remove internal param
+
+    if (provider === 'codex') {
+      if (!tenantId) throw new HttpException('Tenant ID required for Codex', 401);
+      return this.codexService.proxyRequest(endpoint, normalizedBody, tenantId);
+    }
 
     const excludeKeyIds: string[] = [];
     const keysUsed: { id: string; label: string; result: string }[] = [];
@@ -76,11 +86,7 @@ export class GatewayService {
     const startTime = Date.now();
 
     // Inject default model if missing
-    let finalModel = normalizedBody?.model;
-    if (!finalModel && tenantId) {
-      const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
-      finalModel = tenant?.defaultModel || 'llama3.2';
-    }
+    let finalModel = normalizedBody?.model || tenant?.defaultModel || 'llama3.2';
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       // Select a key
@@ -272,18 +278,38 @@ export class GatewayService {
     const maxRetries = settings?.maxRetries || 3;
     const baseUrl = settings?.ollamaBaseUrl || 'https://api.ollama.com';
     const normalizedBody = this.normalizeBody(body);
+    const tenant = tenantId ? await this.prisma.tenant.findUnique({ where: { id: tenantId } }) : null;
+    const provider = normalizedBody.provedor || tenant?.defaultProvider || 'ollama';
+    delete normalizedBody.provedor;
+
+    // Inject default model if missing
+    let finalModel = normalizedBody?.model || tenant?.defaultModel || 'llama3.2';
+
+    if (provider === 'codex') {
+      if (!tenantId) throw new HttpException('Tenant ID required for Codex', 401);
+      const startTime = Date.now();
+      const stream = await this.codexService.proxyStreamRequest(endpoint, normalizedBody, tenantId);
+      
+      const latencyMs = Date.now() - startTime;
+      await this.usageService.logUsage({
+        tenantId,
+        endpoint,
+        model: finalModel,
+        status: 'SUCCESS',
+        statusCode: 200,
+        latencyMs,
+        provider: 'codex',
+        requestBody: JSON.stringify(normalizedBody),
+        responseBody: '[Streaming Response]',
+      });
+
+      return { stream, keysUsed: [{ id: 'codex', label: 'ChatGPT Codex', result: 'SUCCESS' }] };
+    }
 
     const excludeKeyIds: string[] = [];
     const keysUsed: { id: string; label: string; result: string }[] = [];
     let retryCount = 0;
     const startTime = Date.now();
-
-    // Inject default model if missing
-    let finalModel = normalizedBody?.model;
-    if (!finalModel && tenantId) {
-      const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
-      finalModel = tenant?.defaultModel || 'llama3.2';
-    }
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const selectedKey = attempt === 0
@@ -363,27 +389,35 @@ export class GatewayService {
     const settings = await this.prisma.settings.findUnique({ where: { id: 'global' } });
     const baseUrl = settings?.ollamaBaseUrl || 'https://api.ollama.com';
 
+    const tenant = tenantId ? await this.prisma.tenant.findUnique({ where: { id: tenantId } }) : null;
+    const isCodexConnected = !!tenant?.chatgptAccessToken;
+
     const selectedKey = await this.keyRotation.selectKey(tenantId);
-    if (!selectedKey) {
-      throw new HttpException({ error: 'No available API keys' }, 503);
-    }
+    let ollamaModels = [];
 
-    try {
-      const response = await fetch(`${baseUrl}/api/tags`, {
-        headers: { Authorization: `Bearer ${selectedKey.key}` },
-        signal: AbortSignal.timeout(15000),
-      });
+    if (selectedKey) {
+      try {
+        const response = await fetch(`${baseUrl}/api/tags`, {
+          headers: { Authorization: `Bearer ${selectedKey.key}` },
+          signal: AbortSignal.timeout(15000),
+        });
 
-      if (!response.ok) {
-        const outStatus = response.status === 401 ? 502 : response.status;
-        throw new HttpException({ error: 'Failed to list models' }, outStatus);
+        if (response.ok) {
+          const data = await response.json();
+          ollamaModels = data.models || [];
+        }
+      } catch (error) {
+        this.logger.error(`Failed to fetch Ollama models: ${error.message}`);
       }
-
-      return response.json();
-    } catch (error) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException({ error: 'Network error', message: error.message }, 502);
     }
+
+    const codexModels = isCodexConnected ? this.codexService.getCodexModels() : [];
+
+    return {
+      ollama: ollamaModels,
+      codex: codexModels,
+      models: [...ollamaModels, ...codexModels],
+    };
   }
 
   /**

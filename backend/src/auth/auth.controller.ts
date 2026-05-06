@@ -41,6 +41,14 @@ export class AuthController {
     return this.authService.updateDefaultModel(req.user.id, model);
   }
 
+  @Put('profile/default-provider')
+  @UseGuards(GatewayAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update default provider for the tenant' })
+  async updateDefaultProvider(@Req() req: any, @Body('provider') provider: string) {
+    return this.authService.updateDefaultProvider(req.user.id, provider);
+  }
+
   @Put('profile/password')
   @UseGuards(GatewayAuthGuard)
   @ApiBearerAuth()

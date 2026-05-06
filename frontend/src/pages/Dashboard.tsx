@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import api from '../lib/api';
-import { 
-  Activity, 
-  Server, 
-  Clock, 
+import {
+  Activity,
+  Server,
+  Clock,
   RefreshCw,
   CheckCircle2,
   Cpu
 } from 'lucide-react';
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts';
 import clsx from 'clsx';
 
 export default function Dashboard() {
@@ -55,7 +55,7 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           <p className="text-slate-400 mt-1 text-sm">Real-time gateway usage and pool status</p>
         </div>
-        <button 
+        <button
           onClick={fetchData}
           disabled={refreshing}
           className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
@@ -66,33 +66,33 @@ export default function Dashboard() {
 
       {/* Top Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="Total Requests (24h)" 
-          value={stats?.requests24h.toLocaleString() || '0'} 
+        <StatCard
+          title="Total Requests (24h)"
+          value={stats?.requests24h.toLocaleString() || '0'}
           icon={Activity}
           color="text-emerald-400"
           bgColor="bg-emerald-500/10"
           borderColor="border-emerald-500/20"
         />
-        <StatCard 
-          title="Success Rate" 
-          value={`${stats?.successRate24h || 0}%`} 
+        <StatCard
+          title="Success Rate"
+          value={`${stats?.successRate24h || 0}%`}
           icon={CheckCircle2}
           color="text-blue-400"
           bgColor="bg-blue-500/10"
           borderColor="border-blue-500/20"
         />
-        <StatCard 
-          title="Avg Latency" 
-          value={`${stats?.avgLatencyMs || 0}ms`} 
+        <StatCard
+          title="Avg Latency"
+          value={`${stats?.avgLatencyMs || 0}ms`}
           icon={Clock}
           color="text-purple-400"
           bgColor="bg-purple-500/10"
           borderColor="border-purple-500/20"
         />
-        <StatCard 
-          title="Auto-Retries (24h)" 
-          value={stats?.totalRetries24h.toLocaleString() || '0'} 
+        <StatCard
+          title="Auto-Retries (24h)"
+          value={stats?.totalRetries24h.toLocaleString() || '0'}
           icon={RefreshCw}
           color="text-amber-400"
           bgColor="bg-amber-500/10"
@@ -102,35 +102,88 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-lg font-medium text-white mb-6">Requests (Last 24 Hours)</h3>
-          <div className="h-72 w-full">
-            {stats?.requestsPerHour && stats.requestsPerHour.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.requestsPerHour}>
-                  <defs>
-                    <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorFailed" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="hour" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem', color: '#f8fafc' }}
-                    itemStyle={{ color: '#f8fafc' }}
-                  />
-                  <Area type="monotone" dataKey="success" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorSuccess)" name="Successful" />
-                  <Area type="monotone" dataKey="failed" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorFailed)" name="Failed (429/Err)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-slate-500">No data available</div>
-            )}
+        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm flex flex-col">
+          <div className="p-6 border-b border-slate-800/50 flex items-center justify-between bg-slate-900/50">
+            <div>
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Gateway Activity</h3>
+              <p className="text-2xl font-black text-white mt-1">
+                {stats?.requests24h.toLocaleString()} <span className="text-sm font-medium text-slate-500 uppercase tracking-normal">Requests / 24h</span>
+              </p>
+            </div>
+            <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-emerald-500/80">Success</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                <span className="text-red-500/80">Failed</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 p-6 pt-8">
+            <div className="h-[300px] w-full">
+              {stats?.requestsPerHour && stats.requestsPerHour.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={stats.requestsPerHour}
+                    margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorFailed" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.4} />
+                    <XAxis
+                      dataKey="hour"
+                      stroke="#475569"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: '#64748b' }}
+                      minTickGap={30}
+                    />
+                    <YAxis
+                      stroke="#475569"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: '#64748b' }}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#334155', strokeWidth: 1 }} />
+                    <Area
+                      type="monotone"
+                      dataKey="success"
+                      stroke="#10b981"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#colorSuccess)"
+                      name="Successful"
+                      animationDuration={1500}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="failed"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorFailed)"
+                      name="Failed (429/Err)"
+                      animationDuration={1500}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-500">No data available</div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -142,7 +195,7 @@ export default function Dashboard() {
               <Server className="w-5 h-5 text-slate-400" />
               Pool Status
             </h3>
-            
+
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 rounded-xl bg-slate-950/50 border border-slate-800">
                 <div className="flex items-center gap-3">
@@ -193,6 +246,28 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+function CustomTooltip({ active, payload, label }: any) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-2xl backdrop-blur-md bg-opacity-90">
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-800 pb-1.5">{label}</p>
+        <div className="space-y-1.5">
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                <span className="text-xs text-slate-400">{entry.name}</span>
+              </div>
+              <span className="text-xs font-bold text-white">{entry.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
 }
 
 function StatCard({ title, value, icon: Icon, color, bgColor, borderColor }: any) {

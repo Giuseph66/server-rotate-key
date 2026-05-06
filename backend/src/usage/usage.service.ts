@@ -14,6 +14,7 @@ interface LogUsageParams {
   tokensOutput?: number;
   retryCount?: number;
   errorMessage?: string;
+  provider?: string;
   requestBody?: string;
   responseBody?: string;
 }
@@ -40,6 +41,7 @@ export class UsageService {
           tokensOutput: params.tokensOutput || null,
           retryCount: params.retryCount || 0,
           errorMessage: params.errorMessage || null,
+          provider: params.provider || 'ollama',
           requestBody: params.requestBody || null,
           responseBody: params.responseBody || null,
         },
@@ -100,17 +102,25 @@ export class UsageService {
       where: { createdAt: { gte: oneDayAgo } },
     });
 
-    // Top models
-    const topModels = await this.prisma.usageLog.groupBy({
-      by: ['model'],
-      _count: { model: true },
+    // Top models (normalized to lowercase)
+    const allLogsLast24h = await this.prisma.usageLog.findMany({
       where: {
         model: { not: null },
         createdAt: { gte: oneDayAgo },
       },
-      orderBy: { _count: { model: 'desc' } },
-      take: 10,
+      select: { model: true },
     });
+
+    const modelCounts: Record<string, number> = {};
+    allLogsLast24h.forEach((log) => {
+      const normalizedModel = log.model!.toLowerCase().trim();
+      modelCounts[normalizedModel] = (modelCounts[normalizedModel] || 0) + 1;
+    });
+
+    const topModels = Object.entries(modelCounts)
+      .map(([model, count]) => ({ model, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
 
     // Requests per hour (last 24h)
     const logsLast24h = await this.prisma.usageLog.findMany({
@@ -154,10 +164,35 @@ export class UsageService {
       totalRetries24h: totalRetries._sum.retryCount || 0,
       topModels: topModels.map((m) => ({
         model: m.model,
-        count: m._count.model,
+        count: m.count,
       })),
       requestsPerHour,
       usageByTenant,
+    };
+  }
+
+  async getCodexStats(tenantId: string) {
+    const totalRequests = await this.prisma.usageLog.count({
+      where: { tenantId, provider: 'codex' },
+    });
+
+    const lastUsed = await this.prisma.usageLog.findFirst({
+      where: { tenantId, provider: 'codex' },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+
+    const totalTokens = await this.prisma.usageLog.aggregate({
+      _sum: { tokensInput: true, tokensOutput: true },
+      where: { tenantId, provider: 'codex' },
+    });
+
+    return {
+      totalRequests,
+      lastUsed: lastUsed?.createdAt || null,
+      totalTokensInput: totalTokens._sum.tokensInput || 0,
+      totalTokensOutput: totalTokens._sum.tokensOutput || 0,
+      limit: 'Dynamic (ChatGPT Plus)',
     };
   }
 }

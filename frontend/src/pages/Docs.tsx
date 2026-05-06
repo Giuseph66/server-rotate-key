@@ -1,5 +1,6 @@
 import { Terminal, Server, Key, ShieldCheck, Zap, Info, ChevronRight, Copy, Bot, Eye, EyeOff, Settings, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import clsx from 'clsx';
 import api from '../lib/api';
 
 export default function Docs() {
@@ -7,6 +8,13 @@ export default function Docs() {
   const [copied, setCopied] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [usageMode, setUsageMode] = useState<'ollama' | 'codex'>('ollama');
+
+  useEffect(() => {
+    if (profile?.defaultProvider) {
+      setUsageMode(profile.defaultProvider);
+    }
+  }, [profile]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -53,7 +61,7 @@ export default function Docs() {
         </div>
         <h1 className="text-4xl font-extrabold text-white tracking-tight">API Documentation</h1>
         <p className="text-slate-400 max-w-2xl mx-auto">
-          Integrate the Ollama Pool Gateway into your workflows. Manage keys, bypass rate limits, and ensure high availability for your LLM applications.
+          Integrate the Server Rotate Key gateway into your workflows. Manage keys, bypass rate limits, and ensure high availability for your LLM applications.
         </p>
       </div>
 
@@ -96,7 +104,7 @@ export default function Docs() {
               </p>
               <button
                 onClick={() => {
-                  const md = `# Ollama Pool Gateway - AI Integration Context\n\n## 🔗 Base Configuration\n- **Base URL:** \`${baseUrl}\`\n- **Authentication:** Header \`Authorization: Bearer <YOUR_SYSTEM_API_KEY>\`\n- **Header:** \`Content-Type: application/json\`\n\n## 🛠️ API Endpoints\n\n### 1. Chat Completion (\`/api/chat\`)\n- **Method:** \`POST\`\n- **Body Schema:**\n  \`\`\`json\n  {\n    "model": "gemma3:4b",\n    "messages": [{ "role": "user", "content": "Hello!" }],\n    "stream": false\n  }\n  \`\`\`\n- **Gateway Behavior:**\n  - **Auto-Retry:** If a key returns a \`429 Rate Limit\`, the gateway automatically retries with a different key.\n  - **Model Injection:** If \`model\` is omitted, the gateway injects the tenant's **Default Model**.\n\n### 2. List Models (\`/api/models\`)\n- **Method:** \`GET\`\n- **Behavior:** Returns available models in the active pool.\n\n## 🚨 Error Handling\n- \`429 Rate Limit\`: Returned only if **all** keys in the pool are exhausted.\n- \`502 Bad Gateway\`: Upstream Ollama Cloud API network error or invalid keys.\n- \`503 Service Unavailable\`: No active keys available in the pool.\n\n## 💡 Developer Tips\n- **No Manual Retries**: The gateway handles 429 retries automatically.\n- **Streaming**: Supports \`ndjson\` streaming just like the original Ollama API.\n`;
+                  const md = `# Server Rotate Key - AI Integration Context\n\n## 🔗 Base Configuration\n- **Base URL:** \`${baseUrl}\`\n- **Authentication:** Header \`Authorization: Bearer <YOUR_SYSTEM_API_KEY>\`\n- **Headers:** \`Content-Type: application/json\`\n\n## 🛠️ API Endpoints\n\n### 1. Chat Completion (\`/api/chat\`)\n- **Method:** \`POST\`\n- **Description:** Drop-in proxy for LLM inference with automatic rotation and provider switching.\n- **Body Schema:**\n  \`\`\`json\n  {\n    "model": "llama3.2",\n    "messages": [{ "role": "user", "content": "Hello!" }],\n    "stream": false,\n    "provedor": "ollama" // Optional: "ollama" | "codex"\n  }\n  \`\`\`\n- **Key Features:**\n  - **Smart Rotation:** Automatically retries using a different key if a \`429 Rate Limit\` is encountered (Ollama provider).\n  - **Provider Routing:** Use the \`provedor\` field to switch between **Ollama** (pooled keys) and **Codex** (ChatGPT connection).\n  - **Model Injection:** If the \`model\` field is omitted, the gateway automatically injects your configured **Default Model**.\n\n### 2. List Models (\`/api/models\`)\n- **Method:** \`GET\`\n- **Behavior:** Returns an aggregated list of models available across all active providers (Ollama and Codex).\n\n## 🚨 Error Handling\n- \`429 Rate Limit\`: Returned only if **all** configured keys for the provider are currently exhausted.\n- \`502 Bad Gateway\`: Upstream provider network error or invalid API key configuration.\n- \`503 Service Unavailable\`: No active keys or connections available in the pool.\n\n## 💡 Integration Tips\n- **Provider Control**: Force a specific backend using the \`provedor\` parameter.\n- **Streaming**: Full support for \`ndjson\` streaming for both Ollama and Codex backends.\n- **Model Compatibility**: When using Codex, use GPT-compatible model names; for Ollama, use local model names.\n`;
                   copyToClipboard(md, 'ai-markdown');
                 }}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 rounded-lg text-xs font-medium text-purple-400 transition-colors"
@@ -108,7 +116,7 @@ export default function Docs() {
 
             <div className="mt-6 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
               <p className="text-xs text-emerald-400/80 leading-relaxed italic">
-                "The gateway acts as a smart proxy. It handles the 429 retries so your application doesn't have to."
+                "The gateway acts as a smart proxy. It handles the 429 retries and provider routing so your application doesn't have to."
               </p>
             </div>
           </div>
@@ -116,6 +124,34 @@ export default function Docs() {
 
         {/* Right Column: Main Content */}
         <div className="lg:col-span-2 space-y-12">
+          
+          {/* Global Provider Toggle for Examples */}
+          <div className="flex items-center justify-between bg-slate-900/50 border border-slate-800 rounded-2xl p-4 mb-2">
+            <div>
+              <h3 className="text-sm font-bold text-white">Example Context</h3>
+              <p className="text-[10px] text-slate-500">Switch between providers to update all code examples below</p>
+            </div>
+            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => setUsageMode('ollama')}
+                className={clsx(
+                  "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+                  usageMode === 'ollama' ? "bg-emerald-500 text-white shadow-lg" : "text-slate-500 hover:text-slate-400"
+                )}
+              >
+                Ollama
+              </button>
+              <button
+                onClick={() => setUsageMode('codex')}
+                className={clsx(
+                  "px-4 py-1.5 text-xs font-bold rounded-lg transition-all",
+                  usageMode === 'codex' ? "bg-emerald-500 text-white shadow-lg" : "text-slate-500 hover:text-slate-400"
+                )}
+              >
+                Codex
+              </button>
+            </div>
+          </div>
 
           {/* Auth Section */}
           <section id="auth" className="scroll-mt-24 space-y-4">
@@ -177,18 +213,24 @@ export default function Docs() {
                     <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded uppercase">Post</span>
                     <code className="text-white font-mono text-sm">/api/chat</code>
                   </div>
-                  <Zap className="w-4 h-4 text-slate-600 group-hover:text-amber-400 transition-colors" />
                 </div>
-                <p className="text-slate-400 text-xs mb-4">Drop-in replacement for Ollama's chat endpoint. Supports message history and model selection.</p>
+                <p className="text-slate-400 text-xs mb-4">Drop-in replacement for LLM chat endpoints. Supports message history, model selection, and provider routing.</p>
                 <div className="relative">
                   <pre className="bg-slate-950 rounded-xl p-4 overflow-x-auto text-[11px] font-mono text-slate-400">
                     {`curl -X POST ${baseUrl}/api/chat \\
   -H "Authorization: Bearer ${showApiKey && profile?.systemApiKey ? profile.systemApiKey : '<TOKEN>'}" \\
   -H "Content-Type: application/json" \\
-  -d '{"model": "gemma3:4b", "messages": [{"role": "user", "content": "Hello!"}]}'`}
+  -d '{
+    "model": "${usageMode === 'codex' ? 'GPT-5.5' : 'llama3.2'}", 
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "provedor": "${usageMode}"
+  }'`}
                   </pre>
                   <button
-                    onClick={() => copyToClipboard(`curl -X POST ${baseUrl}/api/chat -H "Authorization: Bearer ${profile?.systemApiKey || '<TOKEN>'}" -H "Content-Type: application/json" -d '{"model": "gemma3:4b", "messages": [{"role": "user", "content": "Hello!"}]}'`, 'curl-chat')}
+                    onClick={() => {
+                      const model = usageMode === 'codex' ? 'GPT-5.5' : 'llama3.2';
+                      copyToClipboard(`curl -X POST ${baseUrl}/api/chat -H "Authorization: Bearer ${profile?.systemApiKey || '<TOKEN>'}" -H "Content-Type: application/json" -d '{"model": "${model}", "messages": [{"role": "user", "content": "Hello!"}], "provedor": "${usageMode}"}'`, 'curl-chat');
+                    }}
                     className="absolute top-3 right-3 p-1.5 bg-slate-800 hover:bg-slate-700 rounded-md text-slate-400 transition-colors"
                   >
                     {copied === 'curl-chat' ? <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -203,7 +245,7 @@ export default function Docs() {
                     <code className="text-white font-mono text-sm">/api/models</code>
                   </div>
                 </div>
-                <p className="text-slate-400 text-xs mb-4">Lists all models available on the Ollama Cloud through your active keys.</p>
+                <p className="text-slate-400 text-xs mb-4">Lists all models available across your active providers and pooled keys.</p>
                 <div className="relative">
                   <pre className="bg-slate-950 rounded-xl p-4 overflow-x-auto text-[11px] font-mono text-slate-400">
                     {`curl -X GET ${baseUrl}/api/models \\
@@ -229,27 +271,41 @@ export default function Docs() {
               <h2 className="text-xl font-bold text-white">Profile Management</h2>
             </div>
 
-            <div className="group bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded uppercase">Put</span>
-                  <code className="text-white font-mono text-sm">/api/auth/profile/default-model</code>
+            <div className="space-y-4">
+              <div className="group bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded uppercase">Put</span>
+                    <code className="text-white font-mono text-sm">/api/auth/profile/default-model</code>
+                  </div>
                 </div>
-              </div>
-              <p className="text-slate-400 text-xs mb-4">Change your default model used by the gateway when no model is specified in the request.</p>
-              <div className="relative">
-                <pre className="bg-slate-950 rounded-xl p-4 overflow-x-auto text-[11px] font-mono text-slate-400">
-                  {`curl -X PUT ${baseUrl}/api/auth/profile/default-model \\
+                <p className="text-slate-400 text-xs mb-4">Change your default model used by the gateway when no model is specified in the request.</p>
+                <div className="relative">
+                  <pre className="bg-slate-950 rounded-xl p-4 overflow-x-auto text-[11px] font-mono text-slate-400">
+                    {`curl -X PUT ${baseUrl}/api/auth/profile/default-model \\
   -H "Authorization: Bearer ${showApiKey && profile?.systemApiKey ? profile.systemApiKey : '<TOKEN>'}" \\
   -H "Content-Type: application/json" \\
-  -d '{"model": "gemma3:4b"}'`}
-                </pre>
-                <button
-                  onClick={() => copyToClipboard(`curl -X PUT ${baseUrl}/api/auth/profile/default-model -H "Authorization: Bearer ${profile?.systemApiKey || '<TOKEN>'}" -H "Content-Type: application/json" -d '{"model": "gemma3:4b"}'`, 'curl-default-model')}
-                  className="absolute top-3 right-3 p-1.5 bg-slate-800 hover:bg-slate-700 rounded-md text-slate-400 transition-colors"
-                >
-                  {copied === 'curl-default-model' ? <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
+  -d '{"model": "${usageMode === 'codex' ? 'GPT-5.5' : 'llama3.2'}"}'`}
+                  </pre>
+                </div>
+              </div>
+
+              <div className="group bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded uppercase">Put</span>
+                    <code className="text-white font-mono text-sm">/api/auth/profile/default-provider</code>
+                  </div>
+                </div>
+                <p className="text-slate-400 text-xs mb-4">Switch the default provider for all incoming requests (ollama | codex).</p>
+                <div className="relative">
+                  <pre className="bg-slate-950 rounded-xl p-4 overflow-x-auto text-[11px] font-mono text-slate-400">
+                    {`curl -X PUT ${baseUrl}/api/auth/profile/default-provider \\
+  -H "Authorization: Bearer ${showApiKey && profile?.systemApiKey ? profile.systemApiKey : '<TOKEN>'}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"provider": "${usageMode}"}'`}
+                  </pre>
+                </div>
               </div>
             </div>
           </section>
@@ -259,10 +315,10 @@ export default function Docs() {
             <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-6 space-y-3">
               <h3 className="text-amber-400 font-bold flex items-center gap-2">
                 <Zap className="w-4 h-4" />
-                Important: API Keys vs. Device Keys
+                Ollama Cloud: API Keys vs. Device Keys
               </h3>
               <p className="text-slate-400 text-sm leading-relaxed">
-                Ollama Cloud provides two types of keys. It is common to confuse them:
+                When using Ollama Cloud, it is common to confuse the two types of keys:
               </p>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <li className="bg-slate-950/50 p-4 rounded-xl border border-white/5">

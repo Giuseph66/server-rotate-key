@@ -1,52 +1,59 @@
-# Ollama Pool Gateway - Full Technical Context & Integration Guide
+# Server Rotate Key - Full Technical Context & Integration Guide
 
-This document provides the complete architectural and technical context for the Ollama Pool Gateway. Use this to understand the system's full capabilities and integration patterns.
+This document provides the complete architectural and technical context for the **Server Rotate Key** gateway. Use this to understand the system's full capabilities and integration patterns.
 
 ## 📌 Core Purpose
-The Ollama Pool Gateway is a resilient, multi-tenant proxy layer designed to turn a collection of individual Ollama API keys into a high-availability, enterprise-grade AI service.
+The **Server Rotate Key** is a resilient, multi-tenant proxy layer designed to consolidate multiple AI providers (Ollama, ChatGPT/Codex) into a single, high-availability, enterprise-grade AI service. It handles the complexity of rate limits, key rotation, and provider failover transparently.
 
-## 🚀 Advanced Capabilities (The "Magic" inside)
+## 🚀 Advanced Capabilities (The Engine)
 
-### 1. Transparent Failover & High Availability
-- **Automatic 429 Handling**: When an upstream key returns a `429 Too Many Requests`, the gateway intercepts the error, marks that specific key for "cooldown", and instantly retries the request with the next available key.
+### 1. Multi-Provider Intelligence (Ollama + Codex)
+- **Unified Interface**: A single API endpoint (`/api/chat`) that can route requests to different backends seamlessly.
+- **ChatGPT Codex Integration**: Leverage ChatGPT models directly through the gateway by connecting your account.
+- **Provider Switching**: Use the `provedor` parameter to force a specific backend (`ollama` or `codex`).
+
+### 2. Transparent Failover & High Availability (Ollama)
+- **Automatic 429 Handling**: When an Ollama key returns a `429 Too Many Requests`, the gateway intercepts the error, marks that specific key for "cooldown", and instantly retries the request with the next available key in the pool.
 - **Request Multiplexing**: A single client request can trigger multiple internal retries across different keys without the client ever knowing.
 
-### 2. Intelligent Key Selection (Rotation)
-- **Rotation Strategies**: Supports `round-robin` and `least-used` strategies to distribute load evenly and avoid hitting rate limits on any single key.
-- **Health Monitoring**: A background cron job periodically "pings" all keys. Keys that fail are disabled or put in cooldown automatically.
-
-### 3. Multi-Tenant Resource Management
-- **Isolation**: Each tenant has their own API keys, usage history, and configuration.
-- **Default Model Injection**: Tenants can set a `defaultModel` (e.g., `llama3.2`). If the client sends a request without the `model` parameter, the gateway injects the default dynamically.
+### 3. Intelligent Model Management
+- **Default Model Injection**: Tenants can set a `defaultModel` (e.g., `llama3.2` for Ollama or `GPT-5.5` for Codex). If the client sends a request without the `model` parameter, the gateway injects the correct default dynamically based on the active provider.
+- **Unified Model Listing**: The `/api/models` endpoint aggregates available models from all active keys and connections.
 
 ### 4. Observability & Auditing
-- **Token Estimation**: The gateway estimates input and output tokens for every request to provide cost/usage analysis.
-- **Audit Logs**: Every request/response cycle is logged with:
-  - Latency (ms)
-  - Key used
-  - Exact JSON payload
-  - HTTP Status codes
-  - Success/Retry/Failure status
+- **Real-time Metrics**: Track total requests, success rate, average latency, and auto-retry counts.
+- **Usage Normalization**: All requests (including streaming) are logged and normalized to provide accurate stats on "Top Models" and activity patterns.
 
 ## 🔗 Integration Specifications
 
 ### Authentication
 - **System API Key**: Used for all `/api/*` programmatic calls.
-- **Header**: `Authorization: Bearer <SYSTEM_API_KEY>`
+- **Header**: `Authorization: Bearer <YOUR_SYSTEM_API_KEY>`
 
 ### Primary Endpoints
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
-| `/api/chat` | `POST` | Primary Chat API (Drop-in for Ollama). Supports `stream: true`. |
-| `/api/models` | `GET` | Returns available models in the current key pool. |
-| `/api/usage/stats` | `GET` | Returns tenant-specific usage statistics and performance. |
+| `/api/chat` | `POST` | Primary Chat API. Supports `stream: true` and `provedor` selection. |
+| `/api/models` | `GET` | Returns available models across all active providers. |
+| `/api/usage/stats` | `GET` | Returns detailed usage statistics for the current tenant. |
 
-### Integration Rules for AI Assistants
-1. **Model field is optional**: You can omit it if you want to use the tenant's global default.
-2. **Handle 503/429 sparingly**: If the gateway returns a 429, it truly means the *entire pool* is exhausted.
-3. **Base URL**: Defaults to `http://localhost:3333`.
+### Request Payload Example
+```json
+{
+  "model": "llama3.2", // Optional (uses default if omitted)
+  "messages": [{"role": "user", "content": "Hello!"}],
+  "stream": false,
+  "provedor": "ollama" // Optional: "ollama" | "codex"
+}
+```
 
-## 🛠️ Error Normalization
-- **`502 Bad Gateway`**: Upstream provider (Ollama Cloud) is unreachable or keys are invalid.
-- **`503 Service Unavailable`**: No active keys available in the pool.
-- **`401 Unauthorized`**: System API Key missing or invalid.
+## 🚨 Error Normalization
+- **`429 Too Many Requests`**: Truly means the **entire** pool or provider connection is exhausted.
+- **`502 Bad Gateway`**: Upstream provider is unreachable or key configuration is invalid.
+- **`503 Service Unavailable`**: No active keys or connections available in the current pool.
+- **`401 Unauthorized`**: System API Key is missing or invalid.
+
+## 💡 Developer Tips
+- **Provider Priority**: Set a `defaultProvider` in your profile to avoid sending the `provedor` field in every request.
+- **Streaming**: Always use `ndjson` parsing for stream responses.
+- **Security**: Never expose your System API Key in client-side code; always use it in backend-to-backend calls.

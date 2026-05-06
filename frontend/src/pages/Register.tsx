@@ -48,7 +48,7 @@ export default function Register() {
             <KeyRound className="w-8 h-8 text-emerald-400" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Create Account</h1>
-          <p className="text-slate-400 text-sm mt-2">Join the Ollama Server Rotate Key network</p>
+          <p className="text-slate-400 text-sm mt-2">Join the Server Rotate Key network</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
