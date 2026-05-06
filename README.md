@@ -53,8 +53,8 @@ graph TD
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/Giuseph66/ollama-server-rotate-key.git
-   cd ollama-server-rotate-key
+   git clone https://github.com/Giuseph66/server-rotate-key.git
+   cd server-rotate-key
    ```
 
 2. **Setup the Backend**:
