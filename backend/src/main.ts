@@ -24,7 +24,7 @@ async function bootstrap() {
 
   // Swagger API documentation
   const config = new DocumentBuilder()
-    .setTitle('Ollama Pool Gateway')
+    .setTitle('Server Rotate Key')
     .setDescription(
       'Multi-tenant API key rotation gateway for Ollama Cloud.\n\n' +
       '### Authentication\n' +
@@ -41,7 +41,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3333;
   await app.listen(port);
-  console.log(`\n🚀 Ollama Pool Gateway running on http://localhost:${port}`);
+  console.log(`\n🚀 Server Rotate Key running on http://localhost:${port}`);
   console.log(`📖 API Docs: http://localhost:${port}/docs`);
 }
 bootstrap();

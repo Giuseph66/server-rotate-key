@@ -1,22 +1,22 @@
 # 🚀 Server Rotate Key
 
-**Server Rotate Key** is a high-performance, multi-tenant AI gateway designed to unify, optimize, and scale your interaction with multiple LLM providers. It acts as a resilient proxy layer that handles API key rotation for **Ollama Cloud** and seamless integration with **ChatGPT (Codex)**, ensuring high availability and comprehensive auditing for enterprise applications.
+**Server Rotate Key** is a high-performance, multi-tenant AI gateway designed to unify, optimize, and scale your interaction with multiple LLM providers. It acts as a resilient proxy layer that handles API key rotation for **Ollama** and seamless integration with **ChatGPT (Codex)**, ensuring high availability and comprehensive auditing for enterprise applications.
 
 ## 🌟 Key Features
 
-- **🔄 Multi-Provider Engine**: Support for **Ollama Cloud** (pooled keys) and **ChatGPT Codex** (direct account connection) through a unified API.
-- **⚡ Intelligent Key Rotation**: Automatically manages a pool of multiple API keys. The gateway distributes load and rotates keys to maximize throughput.
-- **🛡️ Automatic Failover (Smart Retry)**: Intercepts rate limit errors (HTTP 429) from upstream providers and instantly retries with the next available key/connection.
-- **🤖 Default Model & Provider Injection**: Configure a "Default Model" and "Default Provider" per tenant. Client requests can be as simple as sending messages—the gateway handles the rest.
-- **📊 Premium Analytics Dashboard**: A state-of-the-art Glassmorphism dashboard with real-time activity charts, success/failure metrics, and detailed audit logs.
+- **🔄 Multi-Provider Engine**: Unified access to **Ollama** (pooled keys) and **ChatGPT Codex** backends through a single, consistent API.
+- **⚡ Intelligent Key Rotation**: Automatically manages pools of API keys, distributing load and rotating keys to maximize throughput and avoid rate limits.
+- **🛡️ Smart Failover**: Intercepts `429 Too Many Requests` errors and instantly retries using the next available key in the pool, ensuring maximum uptime.
+- **🤖 Dynamic Injection**: Configure "Default Model" and "Default Provider" per tenant. If a client request omits these fields, the gateway injects your preferences automatically.
+- **📊 Premium Analytics**: A state-of-the-art dashboard with real-time activity charts, success/failure metrics, and full audit logs for every request.
 - **🔐 Enterprise Security**:
-  - **System API Keys**: Secure programmatic integration without exposing account credentials.
-  - **Tenant Isolation**: Complete separation of keys, logs, and settings between users.
-- **📖 Developer Portal**: Dynamic, interactive API documentation and a built-in **Model Playground** for instant testing.
+  - **System API Keys**: Dedicated keys for programmatic integration.
+  - **Tenant Isolation**: Secure separation of data and configuration between users.
+- **📖 Developer Portal**: Interactive API documentation and a built-in **Model Playground** for instant testing and debugging.
 
 ## 🏗️ Architecture
 
-The gateway acts as an intelligent middleman, abstracting the complexity of multiple backends.
+The gateway abstracts provider-specific logic, providing a resilient interface for your applications.
 
 ```mermaid
 graph TD
@@ -24,12 +24,14 @@ graph TD
     subgraph "Gateway Logic"
         Gateway --> Auth[Auth & Tenant Context]
         Auth --> Engine{Routing Engine}
-        Engine -->|Provider: Ollama| Rotation[Key Rotation & Failover]
-        Engine -->|Provider: Codex| ChatGPT[ChatGPT Codex Service]
+        Engine -->|Ollama| Rotation[Key Rotation & Failover]
+        Engine -->|Codex| ChatGPT[ChatGPT Codex Service]
     end
-    Rotation -->|Success/429| Ollama[Ollama Cloud API]
-    Ollama -->|Retry if 429| Rotation
-    ChatGPT -->|Proxy| OpenAI[OpenAI/Codex Infrastructure]
+    Rotation -->|Success/429| UpstreamOllama[Ollama API]
+    UpstreamOllama -->|Retry if 429| Rotation
+    ChatGPT -->|Proxy| OpenAI[OpenAI Codex]
+    Rotation -->|Data| Gateway
+    ChatGPT -->|Data| Gateway
     Gateway -->|Response| App
 ```
 
@@ -38,7 +40,7 @@ graph TD
 - **Backend**: [NestJS](https://nestjs.com/) (Node.js)
 - **Frontend**: [React](https://reactjs.org/) + [Vite](https://vitejs.dev/)
 - **Database**: [SQLite](https://www.sqlite.org/) + [Prisma ORM](https://www.prisma.io/)
-- **Styling**: Vanilla CSS + Tailwind-inspired Modern UI (Glassmorphism)
+- **Styling**: Vanilla CSS with Glassmorphism & Modern Aesthetics
 
 ## 🚀 Quick Start
 
@@ -59,8 +61,7 @@ graph TD
    ```bash
    cd backend
    npm install
-   npx prisma migrate dev --name init
-   npx prisma db seed
+   npm run db       # Initializes database and seeds default data
    npm run start:dev
    ```
 
@@ -75,18 +76,20 @@ graph TD
 
 Point your applications to the gateway instead of individual provider APIs.
 
-**Example Request (Ollama with System Key):**
+**Example Request (Ollama Provider):**
 ```bash
 curl http://localhost:3333/api/chat \
   -H "Authorization: Bearer YOUR_SYSTEM_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "provedor": "ollama",
+    "model": "llama3.2", 
     "messages": [{ "role": "user", "content": "Explain quantum physics." }]
   }'
 ```
+*Note: If `model` is omitted, the tenant's default model will be used.*
 
-**Example Request (ChatGPT Codex):**
+**Example Request (Codex Provider):**
 ```bash
 curl http://localhost:3333/api/chat \
   -H "Authorization: Bearer YOUR_SYSTEM_KEY" \
